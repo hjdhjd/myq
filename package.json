@@ -1,0 +1,58 @@
+{
+  "name": "myq",
+  "type": "commonjs",
+  "version": "6.0.0",
+  "displayName": "myQ API",
+  "description": "A nearly complete and modern implementation of the Liftmaster / Chamberlain myQ API.",
+  "author": {
+    "name": "HJD",
+    "url": "https://github.com/hjdhjd"
+  },
+  "homepage": "https://github.com/hjdhjd/myq#readme",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/hjdhjd/myq.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hjdhjd/myq/issues"
+  },
+  "keywords": [
+    "chamberlain",
+    "craftsman",
+    "door",
+    "garage",
+    "garage door",
+    "liftmaster",
+    "myq",
+    "remote"
+  ],
+  "engines": {
+    "node": ">=12"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "rimraf ./dist && tsc",
+    "clean": "rimraf ./dist",
+    "lint": "eslint src/**.ts",
+    "postpublish": "npm run clean",
+    "prepublishOnly": "npm run lint && npm run build",
+    "test": "eslint src/**.ts",
+    "watch": "npm run build && npm link && nodemon"
+  },
+  "devDependencies": {
+    "@types/node": "^16.9.2",
+    "@typescript-eslint/eslint-plugin": "^4.31.1",
+    "@typescript-eslint/parser": "^4.31.1",
+    "eslint": "^7.32.0",
+    "rimraf": "^3.0.2",
+    "typescript": "^4.4.3"
+  },
+  "dependencies": {
+    "domexception": "^2.0.1",
+    "node-fetch": "3.0.0-beta.9",
+    "node-html-parser": "^4.1.4",
+    "pkce-challenge": "^2.2.0",
+    "util": "^0.12.4"
+  }
+}
