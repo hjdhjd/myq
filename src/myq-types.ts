@@ -136,21 +136,6 @@ export interface myQHwInfoInterface {
   product: string
 }
 
-// Plugin configuration options.
-export interface myQOptionsInterface {
-
-  activeRefreshDuration: number,
-  activeRefreshInterval: number,
-  debug: boolean,
-  email: string,
-  mqttTopic: string,
-  mqttUrl: string,
-  name: string,
-  options: string[],
-  password: string,
-  refreshInterval: number
-}
-
 // We use types instead of interfaces here because we can more easily set the entire thing as readonly.
 // Unfortunately, interfaces can't be quickly set as readonly in TypeScript without marking each and
 // every property as readonly along the way.
@@ -160,7 +145,6 @@ export type myQProfile = Readonly<myQProfileInterface>;
 export type myQToken = Readonly<myQTokenInterface>;
 export type myQDevice = Readonly<myQDeviceInterface>;
 export type myQHwInfo = Readonly<myQHwInfoInterface>;
-export type myQOptions = Readonly<myQOptionsInterface>;
 
 /*
  * // List all the door types we know about. For future use...
