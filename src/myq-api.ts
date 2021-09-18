@@ -466,7 +466,7 @@ export class myQApi {
 
       if(!response) {
 
-        this.log.error("myQ API: Unable to update device status from the myQ API. Acquiring a new access token and retrying later.");
+        this.log.error("myQ API: Unable to update device status from the myQ API. Acquiring a new access token.");
         this.accessToken = null;
         this.accounts = [];
         return false;
