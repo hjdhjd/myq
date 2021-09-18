@@ -45,12 +45,16 @@ npm install myq
 If you'd like to see all this in action in a well-documented, real-world example, please take a good look at my [homebridge-myq](https://github.com/hjdhjd/homebridge-myq) project. It relies heavily on this library for the core functionality it provides.
 
 ### myQ(email: string, password: string [, log: myQLogging])
-Initialize the myQ API and create a login instance using `email` and `password` to connect. `log` is an optional parameter that enables you to customize the type of logging that can be generated, including debug logging. If `log` isn't specified, the myQ API will default to logging to the console.
+Initialize the myQ API using the myQ account information contained in `email` and `password`. `log` is an optional parameter that enables you to customize the type of logging that can be generated, including debug logging. If `log` isn't specified, the myQ API will default to logging to the console.
 
 ### refreshDevices()
-Request that the myQ library refresh state and device information for all the devices associated with the currently logged in account. There are failsafes in place to ensure it can't be called more than once every two seconds in order to prevent overtaxing the myQ API and potentially lockout an account.
+This is where the magic happens. This function:
 
-`refreshDevices()` must be called at least once, immediately after instantiating the API in order to populate the list of myQ devices.
+* Logs into the myQ API, if we don't already have an access token.
+* If we do have an access token and it's nearly time to refresh it, it will do so.
+* It then requests a refresh of the myQ state and device information for all the myQ devices associated with the currently logged in account. There are failsafes in place to ensure it can't be called more than once every two seconds in order to prevent overtaxing the myQ API and potentially lockout an account.
+
+**Note: `refreshDevices()` must be called at least once after instantiating the API in order to populate the list of myQ devices associated with an account.**
 
 Returns: `true` if successful, `false` otherwise.
 
@@ -80,7 +84,7 @@ Returns: a string representing the device name, model, and serial number, if ava
 ### getHwInfo(serial: string)
 Get the model information of a device identified by the serial number `serial`. myQ devices have a specific serial number pattern, and you can use it to deduce the model information of a particular device.
 
-Returns: `myQHwInfo` if found, or `null`
+Returns: `myQHwInfo` if found, or `null` if we can't deduce what the hardware and model information is.
 
 ## Library Development Dashboard
 This is mostly of interest to the true developer nerds amongst us.
