@@ -136,7 +136,7 @@ export class myQApi {
     }, true);
 
     if(!response) {
-      this.log.error("myQ API: Unable to access the OAuth authorization endpoint. Will retry later.");
+      this.log.error("myQ API: Unable to access the OAuth authorization endpoint.");
       return null;
     }
 
@@ -155,7 +155,7 @@ export class myQApi {
     const requestVerificationToken = loginPageHtml.querySelector("input[name=__RequestVerificationToken]")?.getAttribute("value") as string;
 
     if(!requestVerificationToken) {
-      this.log.error("myQ API: Unable to complete OAuth login. The verification token could not be retrieved. Will retry later.");
+      this.log.error("myQ API: Unable to complete OAuth login. The verification token could not be retrieved.");
       return null;
     }
 
@@ -176,13 +176,13 @@ export class myQApi {
 
     // An error occurred and we didn't get a good response.
     if(!response) {
-      this.log.error("myQ API: Unable to complete OAuth login. Ensure your username and password are correct. Will retry later.");
+      this.log.error("myQ API: Unable to complete OAuth login. Ensure your username and password are correct.");
       return null;
     }
 
     // If we don't have the full set of cookies we expect, the user probably gave bad login information.
     if(response.headers.raw()["set-cookie"].length < 2) {
-      this.log.error("myQ API: Invalid myQ credentials given. Check your login and password. Will retry later.");
+      this.log.error("myQ API: Invalid myQ credentials given. Check your login and password.");
       return null;
     }
 
@@ -209,7 +209,7 @@ export class myQApi {
     }, true);
 
     if(!response) {
-      this.log.error("myQ API: Unable to complete the OAuth login redirect. Will retry later.");
+      this.log.error("myQ API: Unable to complete the OAuth login redirect.");
       return null;
     }
 
@@ -269,7 +269,7 @@ export class myQApi {
     }, true);
 
     if(!response) {
-      this.log.error("myQ API: Unable to acquire an OAuth access token. Will retry later.");
+      this.log.error("myQ API: Unable to acquire an OAuth access token.");
       return null;
     }
 
@@ -562,7 +562,7 @@ export class myQApi {
     const response = await this.fetch("https://accounts.myq-cloud.com/api/v6.0/accounts");
 
     if(!response) {
-      this.log.error("myQ API: Unable to retrieve account information. Will retry later.");
+      this.log.error("myQ API: Unable to retrieve account information.");
       return false;
     }
 
@@ -632,7 +632,7 @@ export class myQApi {
   }
 
   // Return device manufacturer and model information based on the serial number, if we can.
-  public getHwInfo(serial: string): myQHwInfo {
+  public getHwInfo(serial: string): myQHwInfo | null {
 
     // We only know about gateway devices and not individual openers, so we can only decode those.
     // According to Liftmaster, here's how you can decode what device you're using:
@@ -671,13 +671,13 @@ export class myQApi {
     };
 
     if(serial?.length < 4) {
-      return undefined as unknown as myQHwInfo;
+      return null;
     }
 
     // Use the third and fourth characters as indices into the hardware matrix. Admittedly,
     // we don't have a way to resolve the first two characters to ensure we are matching
     // against the right category of devices.
-    return HwInfo[serial[2] + serial[3]];
+    return (HwInfo[serial[2] + serial[3]]) ?? null;
   }
 
   // Utility function to return the relevant portions of the cookies used in the login process.
