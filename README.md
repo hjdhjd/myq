@@ -5,8 +5,8 @@
 
 # myQ
 
-[![Downloads](https://img.shields.io/npm/dt/myq?color=%235EB5E5&logo=icloud&logoColor=%23FFFFFF&style=for-the-badge)](https://www.npmjs.com/package/myq)
-[![Version](https://img.shields.io/npm/v/myq?color=%235EB5E5&label=myQ&logoColor=%23FFFFFF&style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBzdHlsZT0iZmlsbDojRkZGRkZGIiBkPSJNMjMuOTkzIDkuODE2TDEyIDIuNDczbC00LjEyIDIuNTI0VjIuNDczSDQuMTI0djQuODE5TC4wMDQgOS44MTZsMS45NjEgMy4yMDIgMi4xNi0xLjMxNXY5LjgyNmgxNS43NDl2LTkuODI2bDIuMTU5IDEuMzE1IDEuOTYtMy4yMDIiLz48L3N2Zz4K)](https://www.npmjs.com/package/myq)
+[![Downloads](https://img.shields.io/npm/dt/@hjdhjd/myq?color=%235EB5E5&logo=icloud&logoColor=%23FFFFFF&style=for-the-badge)](https://www.npmjs.com/package/@hjdhjd/myq)
+[![Version](https://img.shields.io/npm/v/@hjdhjd/myq?color=%235EB5E5&label=myQ&logoColor=%23FFFFFF&style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBzdHlsZT0iZmlsbDojRkZGRkZGIiBkPSJNMjMuOTkzIDkuODE2TDEyIDIuNDczbC00LjEyIDIuNTI0VjIuNDczSDQuMTI0djQuODE5TC4wMDQgOS44MTZsMS45NjEgMy4yMDIgMi4xNi0xLjMxNXY5LjgyNmgxNS43NDl2LTkuODI2bDIuMTU5IDEuMzE1IDEuOTYtMy4yMDIiLz48L3N2Zz4K)](https://www.npmjs.com/package/myq)
 
 ## myQ: A modern implementation of the myQ API for Liftmaster and Chamberlain devices.
 </DIV>
@@ -85,7 +85,7 @@ Returns: `myQHwInfo` if found, or `null`
 ## Library Development Dashboard
 This is mostly of interest to the true developer nerds amongst us.
 
-[![License](https://img.shields.io/npm/l/myq?color=%230559C9&logo=open%20source%20initiative&logoColor=%23FFFFFF&style=for-the-badge)](https://github.com/hjdhjd/myq/blob/main/LICENSE.md)
+[![License](https://img.shields.io/npm/l/@hjdhjd/myq?color=%230559C9&logo=open%20source%20initiative&logoColor=%23FFFFFF&style=for-the-badge)](https://github.com/hjdhjd/myq/blob/main/LICENSE.md)
 [![Build Status](https://img.shields.io/github/workflow/status/hjdhjd/myq/Continuous%20Integration?color=%230559C9&logo=github-actions&logoColor=%23FFFFFF&style=for-the-badge)](https://github.com/hjdhjd/myq/actions?query=workflow%3A%22Continuous+Integration%22)
-[![Dependencies](https://img.shields.io/librariesio/release/npm/myq?color=%230559C9&logo=dependabot&style=for-the-badge)](https://libraries.io/npm/myq)
+[![Dependencies](https://img.shields.io/librariesio/release/npm/@hjdhjd/myq?color=%230559C9&logo=dependabot&style=for-the-badge)](https://libraries.io/npm/@hjdhjd/myq)
 [![GitHub commits since latest release (by SemVer)](https://img.shields.io/github/commits-since/hjdhjd/myq/latest?color=%230559C9&logo=github&sort=semver&style=for-the-badge)](https://github.com/hjdhjd/myq/commits/main)
