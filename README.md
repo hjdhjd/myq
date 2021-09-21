@@ -39,14 +39,14 @@ The myQ API is undocumented and implementing a library like this one is the resu
 To use this library in Node, install it from the command line:
 
 ```sh
-npm install myq
+npm install @hjdhjd/myq
 ```
 
 ## Documentation
 
 If you'd like to see all this in action in a well-documented, real-world example, please take a good look at my [homebridge-myq](https://github.com/hjdhjd/homebridge-myq) project. It relies heavily on this library for the core functionality it provides.
 
-### myQ(email: string, password: string [, log: myQLogging])
+### myQApi(email: string, password: string [, log: myQLogging])
 Initialize the myQ API using the myQ account information contained in `email` and `password`. `log` is an optional parameter that enables you to customize the type of logging that can be generated, including debug logging. If `log` isn't specified, the myQ API will default to logging to the console.
 
 ### refreshDevices()
@@ -60,7 +60,7 @@ This is where the magic happens. This function:
 
 Returns: `true` if successful, `false` otherwise.
 
-### myQ.devices[]
+### myQApi.devices[]
 The devices property maintains the list of all known myQ devices. It is an array of `myQDevice` objects, and you can look through [myq-types.ts](https://github.com/hjdhjd/myq/blob/main/src/myq-types.ts) for a sense of what's contained in a `myQDevice` object.
 
 This property is refreshed each time `refreshDevices()` is called.
