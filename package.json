@@ -49,7 +49,7 @@
     "typescript": "^4.4.3"
   },
   "dependencies": {
-    "domexception": "^2.0.1",
+    "domexception": "^4.0.0",
     "node-fetch": "3.0.0-beta.9",
     "node-html-parser": "^4.1.4",
     "pkce-challenge": "^2.2.0",
