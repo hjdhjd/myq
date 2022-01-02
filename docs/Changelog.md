@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file. This project uses [semantic versioning](https://semver.org/).
 
+## 6.0.5 (2022-01-01)
+  * Updated to use `node-fetch-cjs` so this package can be easily used in non-ESM environments.
+
 ## 6.0.4 (2021-09-18)
   * Housekeeping.
 

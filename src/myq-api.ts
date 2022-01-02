@@ -3,7 +3,7 @@
  * myq-api.ts: Our myQ API implementation.
  */
 import { MYQ_API_CLIENT_ID, MYQ_API_CLIENT_SECRET, MYQ_API_REDIRECT_URI } from "./settings";
-import fetch, { FetchError, Headers, RequestInfo, RequestInit, Response, isRedirect } from "node-fetch";
+import fetch, { FetchError, Headers, RequestInfo, RequestInit, Response, isRedirect } from "node-fetch-cjs";
 import { myQAccount, myQDevice, myQDeviceList, myQHwInfo, myQToken } from "./myq-types";
 import { myQLogging } from "./myq-logging";
 import { parse } from "node-html-parser";
