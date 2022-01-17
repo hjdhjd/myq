@@ -19,7 +19,7 @@ In short - because I use it every day to support a very popular [Homebridge](htt
 
 In addition, this implementation is unique: it's the first complete open source implementation of the latest myQ API, v6. The v6 API is quite different in significant ways, including a shift to OAuth-based authentication that's clearly the path the myQ API is moving toward in the future. Additionally, v6 brings other advantages besides leveraging modern OAuth semantics, such as making devices shared across accounts available, which has previously been unavailable in prior myQ API versions.
 
-Finally - the most significant reasons that you should use this library: it's very well-tested, it is modern, and most importantly, *it just works*. It's quite easy to add support for myQ in your project using this library, and you can rely on the fact that the code is used by a significant population of users out there who ensure its continued robustness.
+Finally - the most significant reason that you should use this library: it's very well-tested, it is modern, and most importantly, *it just works*. It's quite easy to add support for myQ in your project using this library, and you can rely on the fact that the code is used by a significant population of users out there who ensure its continued robustness.
 
 ### <A NAME="myq-contribute"></A>How you can contribute and make this library even better
 This implementation is largely feature complete. It doesn't support myQ locks or cameras, but may do so in time, though contributions are always welcome.
