@@ -193,14 +193,14 @@ export class myQApi {
   private async oauthRedirect(loginResponse: Response): Promise<Response | null> {
 
     // Get the location for the redirect for later use.
-    const redirectUrl = loginResponse.headers.get("location") as string;
+    const redirectUrl = new URL(loginResponse.headers.get("location") as string, loginResponse.url);
 
     // Cleanup the cookie so we can complete the login process by removing spurious additions
     // to the cookie that gets returned by the myQ API.
     const cookie = this.trimSetCookie(loginResponse.headers.raw()["set-cookie"]);
 
     // Execute the redirect with the cleaned up cookies and we're done.
-    const response = await this.fetch(redirectUrl, {
+    const response = await this.fetch(redirectUrl.toString(), {
       headers: {
         "Cookie": cookie,
         "User-Agent": "null"
@@ -209,6 +209,7 @@ export class myQApi {
     }, true);
 
     if(!response) {
+
       this.log.error("myQ API: Unable to complete the OAuth login redirect.");
       return null;
     }
@@ -688,17 +689,24 @@ export class myQApi {
   }
 
   // Utility to let us streamline error handling and return checking from the myQ API.
-  private async fetch(url: RequestInfo, options: RequestInit = {}, overrideHeaders = false, isRetry = false): Promise<Response | null> {
+  private async fetch(url: RequestInfo, options: RequestInit = {}, overrideHeaders = false, decodeResponse = true, isRetry = false): Promise<Response | null> {
 
     let response: Response;
 
     // Set our headers.
     if(!overrideHeaders) {
+
       options.headers = this.headers;
     }
 
     try {
       response = await fetch(url, options);
+
+      // The caller will sort through responses instead of us.
+      if(!decodeResponse) {
+
+        return response;
+      }
 
       // Bad username and password.
       if(response.status === 401) {
@@ -733,7 +741,7 @@ export class myQApi {
             if(!isRetry) {
 
               this.log.debug("myQ API: Connection has been reset. Retrying the API action.");
-              return this.fetch(url, options, overrideHeaders, true);
+              return this.fetch(url, options, overrideHeaders, decodeResponse, true);
             }
 
             this.log.error("myQ API: Connection has been reset.");
@@ -758,7 +766,6 @@ export class myQApi {
       } else {
 
         this.log.error("Unknown fetch error: %s", error);
-
       }
 
       return null;
