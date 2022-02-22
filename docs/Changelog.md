@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file. This project uses [semantic versioning](https://semver.org/).
 
+## 6.0.7 (2022-02-21)
+  * Housekeeping and dependency updates.
+
 ## 6.0.6 (2022-01-17)
   * Lock the version of `node-fetch-cjs` while the project works out a regression.
 
