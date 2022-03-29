@@ -52,7 +52,7 @@
     "domexception": "^4.0.0",
     "node-fetch-cjs": "=3.2.0",
     "node-html-parser": "^5.2.0",
-    "pkce-challenge": "^2.2.0",
+    "pkce-challenge": "^3.0.0",
     "util": "^0.12.4"
   }
 }
