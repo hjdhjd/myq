@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file. This project uses [semantic versioning](https://semver.org/).
 
+## 6.0.8 (2022-12-27)
+  * Properly URI encode password inputs for myQ logins.
+  * Housekeeping and dependency updates.
+
 ## 6.0.7 (2022-02-21)
   * Housekeeping and dependency updates.
 
