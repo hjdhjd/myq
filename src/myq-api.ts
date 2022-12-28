@@ -160,7 +160,7 @@ export class myQApi {
     }
 
     // Set the login info.
-    const loginBody = new URLSearchParams({ "Email": this.email, "Password": encodeURIComponent(this.password), "__RequestVerificationToken": requestVerificationToken });
+    const loginBody = new URLSearchParams({ "Email": this.email, "Password": this.password, "__RequestVerificationToken": requestVerificationToken });
 
     // Login and we're done.
     const response = await this.fetch(authPage.url, {
