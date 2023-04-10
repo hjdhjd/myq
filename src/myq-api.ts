@@ -2,13 +2,19 @@
  *
  * myq-api.ts: Our myQ API implementation.
  */
-import { MYQ_API_CLIENT_ID, MYQ_API_CLIENT_SECRET, MYQ_API_REDIRECT_URI } from "./settings";
-import fetch, { FetchError, Headers, RequestInfo, RequestInit, Response, isRedirect } from "node-fetch-cjs";
-import { myQAccount, myQDevice, myQDeviceList, myQHwInfo, myQToken } from "./myq-types";
-import { myQLogging } from "./myq-logging";
+import { ALPNProtocol, FetchError, Headers, Request, RequestOptions, Response, context } from "@adobe/fetch";
+import { MYQ_API_CLIENT_ID, MYQ_API_CLIENT_SECRET, MYQ_API_REDIRECT_URI } from "./settings.js";
+import { myQAccount, myQDevice, myQDeviceList, myQHwInfo, myQToken } from "./myq-types.js";
+import { myQLogging } from "./myq-logging.js";
 import { parse } from "node-html-parser";
 import pkceChallenge from "pkce-challenge";
-import util from "util";
+import util from "node:util";
+
+// Workaround for missing type information in @adobe/fetch.
+interface myQHeaders extends Headers {
+
+  raw(): Record<string, string | string[]>;
+}
 
 /*
  * The myQ API is undocumented, non-public, and has been derived largely through
@@ -75,6 +81,7 @@ export class myQApi {
   private log: myQLogging;
   private lastAuthenticateCall!: number;
   private lastRefreshDevicesCall!: number;
+  private myqRetrieve: (url: string|Request, options?: RequestOptions) => Promise<Response>;
 
   // Initialize this instance with our login information.
   constructor(email: string, password: string, log?: myQLogging) {
@@ -103,7 +110,8 @@ export class myQApi {
     this.tokenScope = "";
 
     // The myQ API v6 doesn't seem to require an HTTP user agent to be set - so we don't.
-    this.headers.set("User-Agent", "null");
+    const { fetch } = context({ alpnProtocols: [ ALPNProtocol.ALPN_HTTP2 ], userAgent: "" });
+    this.myqRetrieve = fetch;
   }
 
   // Transmit the PKCE challenge and retrieve the myQ OAuth authorization page to prepare to login.
@@ -130,10 +138,7 @@ export class myQApi {
     authEndpoint.searchParams.set("scope", "MyQ_Residential offline_access");
 
     // Send the PKCE challenge and let's begin the login process.
-    const response = await this.fetch(authEndpoint.toString(), {
-      headers: { "User-Agent": "null" },
-      redirect: "follow"
-    }, true);
+    const response = await this.retrieve(authEndpoint.toString(), { redirect: "follow" }, true);
 
     if(!response) {
       this.log.error("myQ API: Unable to access the OAuth authorization endpoint.");
@@ -147,7 +152,7 @@ export class myQApi {
   private async oauthLogin(authPage: Response): Promise<Response | null> {
 
     // Grab the cookie for the OAuth sequence. We need to deal with spurious additions to the cookie that gets returned by the myQ API.
-    const cookie = this.trimSetCookie(authPage.headers.raw()["set-cookie"]);
+    const cookie = this.trimSetCookie((authPage.headers as myQHeaders).raw()["set-cookie"] as string[]);
 
     // Parse the myQ login page and grab what we need.
     const htmlText = await authPage.text();
@@ -163,12 +168,11 @@ export class myQApi {
     const loginBody = new URLSearchParams({ "Email": this.email, "Password": this.password, "__RequestVerificationToken": requestVerificationToken });
 
     // Login and we're done.
-    const response = await this.fetch(authPage.url, {
+    const response = await this.retrieve(authPage.url, {
       body: loginBody.toString(),
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
-        "Cookie": cookie,
-        "User-Agent": "null"
+        "Cookie": cookie
       },
       method: "POST",
       redirect: "manual"
@@ -181,7 +185,7 @@ export class myQApi {
     }
 
     // If we don't have the full set of cookies we expect, the user probably gave bad login information.
-    if(response.headers.raw()["set-cookie"].length < 2) {
+    if((response.headers as myQHeaders).raw()["set-cookie"].length < 2) {
       this.log.error("myQ API: Invalid myQ credentials given. Check your login and password.");
       return null;
     }
@@ -197,13 +201,12 @@ export class myQApi {
 
     // Cleanup the cookie so we can complete the login process by removing spurious additions
     // to the cookie that gets returned by the myQ API.
-    const cookie = this.trimSetCookie(loginResponse.headers.raw()["set-cookie"]);
+    const cookie = this.trimSetCookie((loginResponse.headers as myQHeaders).raw()["set-cookie"] as string[]);
 
     // Execute the redirect with the cleaned up cookies and we're done.
-    const response = await this.fetch(redirectUrl.toString(), {
+    const response = await this.retrieve(redirectUrl.toString(), {
       headers: {
-        "Cookie": cookie,
-        "User-Agent": "null"
+        "Cookie": cookie
       },
       redirect: "manual"
     }, true);
@@ -260,11 +263,10 @@ export class myQApi {
 
     // Now we execute the final login redirect that will validate the PKCE challenge and
     // return our access and refresh tokens.
-    response = await this.fetch("https://partner-identity.myq-cloud.com/connect/token", {
+    response = await this.retrieve("https://partner-identity.myq-cloud.com/connect/token", {
       body: requestBody.toString(),
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "User-Agent": "null"
+        "Content-Type": "application/x-www-form-urlencoded"
       },
       method: "POST"
     }, true);
@@ -306,11 +308,10 @@ export class myQApi {
     });
 
     // Execute the refresh token request.
-    const response = await this.fetch("https://partner-identity.myq-cloud.com/connect/token", {
+    const response = await this.retrieve("https://partner-identity.myq-cloud.com/connect/token", {
       body: requestBody.toString(),
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "User-Agent": "null"
+        "Content-Type": "application/x-www-form-urlencoded"
       },
       method: "POST"
     }, true);
@@ -463,7 +464,7 @@ export class myQApi {
 
       // Get the list of device information for this account.
       // eslint-disable-next-line no-await-in-loop
-      const response = await this.fetch("https://devices.myq-cloud.com/api/v5.2/Accounts/" + accountId + "/Devices");
+      const response = await this.retrieve("https://devices.myq-cloud.com/api/v5.2/Accounts/" + accountId + "/Devices");
 
       if(!response) {
 
@@ -535,12 +536,12 @@ export class myQApi {
     if(device.device_family === "lamp") {
 
       // Execute a command on a lamp device.
-      response = await this.fetch("https://account-devices-lamp.myq-cloud.com/api/v5.2/Accounts/" + device.account_id +
+      response = await this.retrieve("https://account-devices-lamp.myq-cloud.com/api/v5.2/Accounts/" + device.account_id +
         "/lamps/" + device.serial_number + "/" + command, { method: "PUT" });
     } else {
 
       // By default, we assume we're targeting a garage door opener.
-      response = await this.fetch("https://account-devices-gdo.myq-cloud.com/api/v5.2/Accounts/" + device.account_id +
+      response = await this.retrieve("https://account-devices-gdo.myq-cloud.com/api/v5.2/Accounts/" + device.account_id +
         "/door_openers/" + device.serial_number + "/" + command, { method: "PUT" });
     }
 
@@ -560,7 +561,7 @@ export class myQApi {
   private async getAccounts(): Promise<boolean> {
 
     // Get the account information.
-    const response = await this.fetch("https://accounts.myq-cloud.com/api/v6.0/accounts");
+    const response = await this.retrieve("https://accounts.myq-cloud.com/api/v6.0/accounts");
 
     if(!response) {
       this.log.error("myQ API: Unable to retrieve account information.");
@@ -689,7 +690,9 @@ export class myQApi {
   }
 
   // Utility to let us streamline error handling and return checking from the myQ API.
-  private async fetch(url: RequestInfo, options: RequestInit = {}, overrideHeaders = false, decodeResponse = true, isRetry = false): Promise<Response | null> {
+  private async retrieve(url: string, options: RequestOptions = {}, overrideHeaders = false, decodeResponse = true, isRetry = false): Promise<Response | null> {
+
+    const isRedirect = (code: number): boolean => [301, 302, 303, 307, 308].some(x => x === code);
 
     let response: Response;
 
@@ -700,7 +703,7 @@ export class myQApi {
     }
 
     try {
-      response = await fetch(url, options);
+      response = await this.myqRetrieve(url, options);
 
       // The caller will sort through responses instead of us.
       if(!decodeResponse) {
@@ -728,7 +731,7 @@ export class myQApi {
 
       if(error instanceof FetchError) {
 
-        switch(error.code) {
+        switch(error.code as unknown as string) {
 
           case "ECONNREFUSED":
 
@@ -741,7 +744,7 @@ export class myQApi {
             if(!isRetry) {
 
               this.log.debug("myQ API: Connection has been reset. Retrying the API action.");
-              return this.fetch(url, options, overrideHeaders, decodeResponse, true);
+              return this.retrieve(url, options, overrideHeaders, decodeResponse, true);
             }
 
             this.log.error("myQ API: Connection has been reset.");

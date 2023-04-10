@@ -2,6 +2,5 @@
  *
  * index.ts: myQ API registration.
  */
-export * from "./myq-api";
-export * from "./myq-types";
-
+export * from "./myq-api.js";
+export * from "./myq-types.js";
