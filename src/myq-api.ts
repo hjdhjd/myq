@@ -152,7 +152,7 @@ export class myQApi {
   private async oauthLogin(authPage: Response): Promise<Response | null> {
 
     // Grab the cookie for the OAuth sequence. We need to deal with spurious additions to the cookie that gets returned by the myQ API.
-    const cookie = this.trimSetCookie((authPage.headers as myQHeaders).raw()["set-cookie"] as string[]);
+    const cookie = this.trimSetCookie((authPage.headers as myQHeaders).raw()["set-cookie"]);
 
     // Parse the myQ login page and grab what we need.
     const htmlText = await authPage.text();
@@ -201,7 +201,7 @@ export class myQApi {
 
     // Cleanup the cookie so we can complete the login process by removing spurious additions
     // to the cookie that gets returned by the myQ API.
-    const cookie = this.trimSetCookie((loginResponse.headers as myQHeaders).raw()["set-cookie"] as string[]);
+    const cookie = this.trimSetCookie((loginResponse.headers as myQHeaders).raw()["set-cookie"]);
 
     // Execute the redirect with the cleaned up cookies and we're done.
     const response = await this.retrieve(redirectUrl.toString(), {
@@ -683,7 +683,13 @@ export class myQApi {
   }
 
   // Utility function to return the relevant portions of the cookies used in the login process.
-  private trimSetCookie(setCookie: string[]): string {
+  private trimSetCookie(setCookie: string | string[]): string {
+
+    // Let's make sure we're operating on an array that's passed back as a header.
+    if(!Array.isArray(setCookie)) {
+
+      setCookie = [ setCookie ];
+    }
 
     // We need to strip spurious additions to the cookie that gets returned by the myQ API.
     return setCookie.map(x => x.split(";")[0]).join("; ");
