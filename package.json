@@ -28,7 +28,7 @@
     "remote"
   ],
   "engines": {
-    "node": ">=16"
+    "node": ">16"
   },
   "main": "dist/index.js",
   "scripts": {
