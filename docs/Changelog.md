@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file. This project uses [semantic versioning](https://semver.org/).
 
+## 7.0.1 (2023-04-11)
+  * Housekeeping.
+
 ## 7.0.0 (2023-04-10)
   * This is now an ESM-only package. If you'd like to use this library in Common Javascript (CJS), use v6.
   * Improve performance with a shift to HTTP2.
