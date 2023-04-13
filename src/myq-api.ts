@@ -10,12 +10,6 @@ import { parse } from "node-html-parser";
 import pkceChallenge from "pkce-challenge";
 import util from "node:util";
 
-// Workaround for missing type information in @adobe/fetch.
-interface myQHeaders extends Headers {
-
-  raw(): Record<string, string | string[]>;
-}
-
 /*
  * The myQ API is undocumented, non-public, and has been derived largely through
  * reverse engineering the official app, myQ website, and trial and error.
@@ -152,7 +146,7 @@ export class myQApi {
   private async oauthLogin(authPage: Response): Promise<Response | null> {
 
     // Grab the cookie for the OAuth sequence. We need to deal with spurious additions to the cookie that gets returned by the myQ API.
-    const cookie = this.trimSetCookie((authPage.headers as myQHeaders).raw()["set-cookie"]);
+    const cookie = this.trimSetCookie(authPage.headers.raw()["set-cookie"]);
 
     // Parse the myQ login page and grab what we need.
     const htmlText = await authPage.text();
@@ -185,7 +179,7 @@ export class myQApi {
     }
 
     // If we don't have the full set of cookies we expect, the user probably gave bad login information.
-    if((response.headers as myQHeaders).raw()["set-cookie"].length < 2) {
+    if(response.headers.raw()["set-cookie"].length < 2) {
       this.log.error("myQ API: Invalid myQ credentials given. Check your login and password.");
       return null;
     }
@@ -201,7 +195,7 @@ export class myQApi {
 
     // Cleanup the cookie so we can complete the login process by removing spurious additions
     // to the cookie that gets returned by the myQ API.
-    const cookie = this.trimSetCookie((loginResponse.headers as myQHeaders).raw()["set-cookie"]);
+    const cookie = this.trimSetCookie(loginResponse.headers.raw()["set-cookie"]);
 
     // Execute the redirect with the cleaned up cookies and we're done.
     const response = await this.retrieve(redirectUrl.toString(), {
