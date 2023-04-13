@@ -1,7 +1,7 @@
 {
   "name": "@hjdhjd/myq",
   "type": "module",
-  "version": "7.0.1",
+  "version": "7.0.2",
   "displayName": "myQ API",
   "description": "A nearly complete and modern implementation of the Liftmaster / Chamberlain myQ API.",
   "author": {
@@ -49,7 +49,7 @@
     "typescript": "^5.0.4"
   },
   "dependencies": {
-    "@adobe/fetch": "^4.0.6",
+    "@adobe/fetch": "^4.0.8",
     "node-html-parser": "^6.1.5",
     "pkce-challenge": "^2.2.0",
     "util": "^0.12.5"
