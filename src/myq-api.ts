@@ -731,7 +731,7 @@ export class myQApi {
 
       if(error instanceof FetchError) {
 
-        switch(error.code as unknown as string) {
+        switch(error.code) {
 
           case "ECONNREFUSED":
 
