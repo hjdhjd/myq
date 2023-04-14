@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file. This project uses [semantic versioning](https://semver.org/).
 
+## 7.1.0 (2023-04-13)
+  * Allow for user-selectable cloud geographic regions for the myQ API.
+
 ## 7.0.2 (2023-04-13)
   * Housekeeping.
 

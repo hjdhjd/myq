@@ -1,7 +1,7 @@
 {
   "name": "@hjdhjd/myq",
   "type": "module",
-  "version": "7.0.2",
+  "version": "7.1.0",
   "displayName": "myQ API",
   "description": "A nearly complete and modern implementation of the Liftmaster / Chamberlain myQ API.",
   "author": {
