@@ -61,6 +61,9 @@ import util from "node:util";
  * it either doesn't exist or hasn't been discovered yet.
  */
 
+const myQDomain = "myq-cloud.com";
+const myQRegions = [ "east", "west" ];
+
 export class myQApi {
   public devices!: myQDevice[];
   private accessToken: string | null;
@@ -76,22 +79,22 @@ export class myQApi {
   private lastAuthenticateCall!: number;
   private lastRefreshDevicesCall!: number;
   private myqRetrieve: (url: string|Request, options?: RequestOptions) => Promise<Response>;
+  private region: string;
 
   // Initialize this instance with our login information.
-  constructor(email: string, password: string, log?: myQLogging) {
+  constructor(email: string, password: string, log?: myQLogging, region = "") {
 
     // If we didn't get passed a logging parameter, by default we log to the console.
-    if(!log) {
-      log = {
-        /* eslint-disable no-console */
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        debug: (message: string, ...parameters: unknown[]): void => { /* No debug logging by default. */ },
-        error: (message: string, ...parameters: unknown[]): void => console.error(util.format(message, ...parameters)),
-        info: (message: string, ...parameters: unknown[]): void => console.log(util.format(message, ...parameters)),
-        warn: (message: string, ...parameters: unknown[]): void => console.log(util.format(message, ...parameters))
-        /* eslint-enable no-console */
-      };
-    }
+    log = log ?? {
+
+      /* eslint-disable no-console */
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      debug: (message: string, ...parameters: unknown[]): void => { /* No debug logging by default. */ },
+      error: (message: string, ...parameters: unknown[]): void => console.error(util.format(message, ...parameters)),
+      info: (message: string, ...parameters: unknown[]): void => console.log(util.format(message, ...parameters)),
+      warn: (message: string, ...parameters: unknown[]): void => console.log(util.format(message, ...parameters))
+      /* eslint-enable no-console */
+    };
 
     this.accessToken = null;
     this.accounts = [];
@@ -101,7 +104,12 @@ export class myQApi {
     this.password = password;
     this.refreshInterval = 0;
     this.refreshToken = "";
+    this.region = "";
     this.tokenScope = "";
+
+    // Discern if we've been explicitly directed to a particular myQ cloud region.
+    region = region.toLowerCase();
+    this.region = myQRegions.some(x => x === region) ? region : "";
 
     // The myQ API v6 doesn't seem to require an HTTP user agent to be set - so we don't.
     const { fetch } = context({ alpnProtocols: [ ALPNProtocol.ALPN_HTTP2 ], userAgent: "" });
@@ -111,7 +119,7 @@ export class myQApi {
   // Transmit the PKCE challenge and retrieve the myQ OAuth authorization page to prepare to login.
   private async oauthGetAuthPage(codeChallenge: string): Promise<Response | null> {
 
-    const authEndpoint = new URL("https://partner-identity.myq-cloud.com/connect/authorize");
+    const authEndpoint = new URL("https://partner-identity" + this.myQCloud + "/connect/authorize");
 
     // Set the client identifier.
     authEndpoint.searchParams.set("client_id", "IOS_CGI_MYQ");
@@ -257,7 +265,7 @@ export class myQApi {
 
     // Now we execute the final login redirect that will validate the PKCE challenge and
     // return our access and refresh tokens.
-    response = await this.retrieve("https://partner-identity.myq-cloud.com/connect/token", {
+    response = await this.retrieve("https://partner-identity" + this.myQCloud + "/connect/token", {
       body: requestBody.toString(),
       headers: {
         "Content-Type": "application/x-www-form-urlencoded"
@@ -302,7 +310,7 @@ export class myQApi {
     });
 
     // Execute the refresh token request.
-    const response = await this.retrieve("https://partner-identity.myq-cloud.com/connect/token", {
+    const response = await this.retrieve("https://partner-identity" + this.myQCloud + "/connect/token", {
       body: requestBody.toString(),
       headers: {
         "Content-Type": "application/x-www-form-urlencoded"
@@ -362,11 +370,15 @@ export class myQApi {
       return false;
     }
 
+    const regionMsg = this.region ? " using the " + this.region + " myQ cloud region" : "";
+
     // On initial plugin startup, let the user know we've successfully connected.
     if(firstConnection) {
-      this.log.info("myQ API: Successfully connected to the myQ API.");
+
+      this.log.info("myQ API: Successfully connected to the myQ API%s.", regionMsg);
     } else {
-      this.log.debug("myQ API: Successfully reacquired a myQ API access token.");
+
+      this.log.debug("myQ API: Successfully reacquired a myQ API access token%s.", regionMsg);
     }
 
     this.accessToken = token;
@@ -458,7 +470,7 @@ export class myQApi {
 
       // Get the list of device information for this account.
       // eslint-disable-next-line no-await-in-loop
-      const response = await this.retrieve("https://devices.myq-cloud.com/api/v5.2/Accounts/" + accountId + "/Devices");
+      const response = await this.retrieve("https://devices" + this.myQCloud + "/api/v5.2/Accounts/" + accountId + "/Devices");
 
       if(!response) {
 
@@ -530,12 +542,12 @@ export class myQApi {
     if(device.device_family === "lamp") {
 
       // Execute a command on a lamp device.
-      response = await this.retrieve("https://account-devices-lamp.myq-cloud.com/api/v5.2/Accounts/" + device.account_id +
+      response = await this.retrieve("https://account-devices-lamp" + this.myQCloud + "/api/v5.2/Accounts/" + device.account_id +
         "/lamps/" + device.serial_number + "/" + command, { method: "PUT" });
     } else {
 
       // By default, we assume we're targeting a garage door opener.
-      response = await this.retrieve("https://account-devices-gdo.myq-cloud.com/api/v5.2/Accounts/" + device.account_id +
+      response = await this.retrieve("https://account-devices-gdo" + this.myQCloud + "/api/v5.2/Accounts/" + device.account_id +
         "/door_openers/" + device.serial_number + "/" + command, { method: "PUT" });
     }
 
@@ -555,7 +567,7 @@ export class myQApi {
   private async getAccounts(): Promise<boolean> {
 
     // Get the account information.
-    const response = await this.retrieve("https://accounts.myq-cloud.com/api/v6.0/accounts");
+    const response = await this.retrieve("https://accounts" + this.myQCloud + "/api/v6.0/accounts");
 
     if(!response) {
       this.log.error("myQ API: Unable to retrieve account information.");
@@ -577,6 +589,12 @@ export class myQApi {
     this.accounts = data.accounts.map(x => x.id);
 
     return true;
+  }
+
+  // Utility to retrieve our domain.
+  private get myQCloud(): string {
+
+    return (this.region.length ? "-" + this.region : "") + "." + myQDomain;
   }
 
   // Get the details of a specific device in the myQ device list.
