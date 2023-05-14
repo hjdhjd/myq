@@ -181,7 +181,7 @@ export class myQApi {
     }, true);
 
     // An error occurred and we didn't get a good response.
-    if(!response) {
+    if(!response || !response.headers) {
       this.log.error("myQ API: Unable to complete OAuth login. Ensure your username and password are correct.");
       return null;
     }
@@ -226,7 +226,7 @@ export class myQApi {
   private async getOAuthToken(): Promise<string | null> {
 
     // Generate the OAuth PKCE challenge required for the myQ API.
-    const pkce = pkceChallenge();
+    const pkce = await pkceChallenge();
 
     // Call the myQ authorization endpoint using our PKCE challenge to get the web login page.
     let response = await this.oauthGetAuthPage(pkce.code_challenge);
