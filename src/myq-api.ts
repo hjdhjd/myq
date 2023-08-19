@@ -65,6 +65,7 @@ const myQDomain = "myq-cloud.com";
 const myQRegions = [ "east", "west" ];
 
 export class myQApi {
+
   public devices!: myQDevice[];
   private accessToken: string | null;
   private refreshInterval: number;
@@ -100,12 +101,19 @@ export class myQApi {
     this.accounts = [];
     this.email = email;
     this.headers = new Headers();
-    this.log = log;
     this.password = password;
     this.refreshInterval = 0;
     this.refreshToken = "";
     this.region = "";
     this.tokenScope = "";
+
+    this.log = {
+
+      debug: (message: string, ...parameters: unknown[]): void => log?.debug("myQ API: " + message, ...parameters),
+      error: (message: string, ...parameters: unknown[]): void => log?.error("myQ API error: " + message, ...parameters),
+      info: (message: string, ...parameters: unknown[]): void => log?.info("myQ API: " + message, ...parameters),
+      warn: (message: string, ...parameters: unknown[]): void => log?.warn("myQ API: " + message, ...parameters)
+    };
 
     // Discern if we've been explicitly directed to a particular myQ cloud region.
     region = region.toLowerCase();
@@ -143,7 +151,8 @@ export class myQApi {
     const response = await this.retrieve(authEndpoint.toString(), { redirect: "follow" }, true);
 
     if(!response) {
-      this.log.error("myQ API: Unable to access the OAuth authorization endpoint.");
+
+      this.log.debug("Unable to access the OAuth authorization endpoint.");
       return null;
     }
 
@@ -162,7 +171,8 @@ export class myQApi {
     const requestVerificationToken = loginPageHtml.querySelector("input[name=__RequestVerificationToken]")?.getAttribute("value") as string;
 
     if(!requestVerificationToken) {
-      this.log.error("myQ API: Unable to complete OAuth login. The verification token could not be retrieved.");
+
+      this.log.error("Unable to complete login. The verification token could not be retrieved.");
       return null;
     }
 
@@ -171,8 +181,10 @@ export class myQApi {
 
     // Login and we're done.
     const response = await this.retrieve(authPage.url, {
+
       body: loginBody.toString(),
       headers: {
+
         "Content-Type": "application/x-www-form-urlencoded",
         "Cookie": cookie
       },
@@ -182,13 +194,15 @@ export class myQApi {
 
     // An error occurred and we didn't get a good response.
     if(!response || !response.headers) {
-      this.log.error("myQ API: Unable to complete OAuth login. Ensure your username and password are correct.");
+
+      this.log.debug("Unable to complete OAuth login.");
       return null;
     }
 
     // If we don't have the full set of cookies we expect, the user probably gave bad login information.
-    if(response.headers.raw()["set-cookie"].length < 2) {
-      this.log.error("myQ API: Invalid myQ credentials given. Check your login and password.");
+    if(!response.headers.raw()["set-cookie"] || response.headers.raw()["set-cookie"].length < 2) {
+
+      this.log.error("Invalid myQ credentials given. Check your login and password.");
       return null;
     }
 
@@ -215,7 +229,7 @@ export class myQApi {
 
     if(!response) {
 
-      this.log.error("myQ API: Unable to complete the OAuth login redirect.");
+      this.log.debug("Unable to complete the login redirect.");
       return null;
     }
 
@@ -232,6 +246,7 @@ export class myQApi {
     let response = await this.oauthGetAuthPage(pkce.code_challenge);
 
     if(!response) {
+
       return null;
     }
 
@@ -239,6 +254,7 @@ export class myQApi {
     response = await this.oauthLogin(response);
 
     if(!response) {
+
       return null;
     }
 
@@ -246,6 +262,7 @@ export class myQApi {
     response = await this.oauthRedirect(response);
 
     if(!response) {
+
       return null;
     }
 
@@ -254,6 +271,7 @@ export class myQApi {
 
     // Create the request to get our access and refresh tokens.
     const requestBody = new URLSearchParams({
+
       "client_id": MYQ_API_CLIENT_ID,
       "client_secret": Buffer.from(MYQ_API_CLIENT_SECRET, "base64").toString(),
       "code": redirectUrl.searchParams.get("code") as string,
@@ -266,6 +284,7 @@ export class myQApi {
     // Now we execute the final login redirect that will validate the PKCE challenge and
     // return our access and refresh tokens.
     response = await this.retrieve("https://partner-identity" + this.myQCloud + "/connect/token", {
+
       body: requestBody.toString(),
       headers: {
         "Content-Type": "application/x-www-form-urlencoded"
@@ -274,7 +293,7 @@ export class myQApi {
     }, true);
 
     if(!response) {
-      this.log.error("myQ API: Unable to acquire an OAuth access token.");
+
       return null;
     }
 
@@ -301,6 +320,7 @@ export class myQApi {
 
     // Create the request to refresh tokens.
     const requestBody = new URLSearchParams({
+
       "client_id": MYQ_API_CLIENT_ID,
       "client_secret": Buffer.from(MYQ_API_CLIENT_SECRET, "base64").toString(),
       "grant_type": "refresh_token",
@@ -311,6 +331,7 @@ export class myQApi {
 
     // Execute the refresh token request.
     const response = await this.retrieve("https://partner-identity" + this.myQCloud + "/connect/token", {
+
       body: requestBody.toString(),
       headers: {
         "Content-Type": "application/x-www-form-urlencoded"
@@ -319,6 +340,7 @@ export class myQApi {
     }, true);
 
     if(!response) {
+
       return false;
     }
 
@@ -335,13 +357,14 @@ export class myQApi {
 
     // Ensure we never try to refresh more frequently than every five minutes.
     if(this.refreshInterval < 300) {
+
       this.refreshInterval = 300;
     }
 
     // Update our authorization header.
     this.headers.set("Authorization", this.accessToken);
 
-    this.log.debug("myQ API: Successfully refreshed the myQ API access token.");
+    this.log.debug("Successfully refreshed the myQ API access token.");
 
     // We're done.
     return true;
@@ -375,10 +398,10 @@ export class myQApi {
     // On initial plugin startup, let the user know we've successfully connected.
     if(firstConnection) {
 
-      this.log.info("myQ API: Successfully connected to the myQ API%s.", regionMsg);
+      this.log.info("Successfully connected to the myQ API%s.", regionMsg);
     } else {
 
-      this.log.debug("myQ API: Successfully reacquired a myQ API access token%s.", regionMsg);
+      this.log.debug("Successfully reacquired a myQ API access token%s.", regionMsg);
     }
 
     this.accessToken = token;
@@ -423,8 +446,7 @@ export class myQApi {
       return true;
     }
 
-    this.log.error("myQ API: Unable to refresh our access token. " +
-      "This error can usually be safely ignored and will be resolved by acquiring a new access token.");
+    this.log.error("Unable to refresh our access token. This error can usually be safely ignored and will be resolved by acquiring a new access token.");
 
     // Now generate a new access token.
     if(!(await this.acquireAccessToken())) {
@@ -443,7 +465,8 @@ export class myQApi {
     // than once every two seconds or so, bad things can happen on the myQ side leading
     // to potential account lockouts. The author definitely learned this one the hard way.
     if(this.lastRefreshDevicesCall && ((now - this.lastRefreshDevicesCall) < (2 * 1000))) {
-      this.log.debug("myQ API: throttling refreshDevices API call. Using cached data from the past two seconds.");
+
+      this.log.debug("throttling refreshDevices API call. Using cached data from the past two seconds.");
 
       return this.devices ? true : false;
     }
@@ -453,13 +476,16 @@ export class myQApi {
 
     // Validate and potentially refresh our access token.
     if(!(await this.refreshAccessToken())) {
+
       return false;
     }
 
     // Update our account information, to see if we've added or removed access to any other devices.
     if(!(await this.getAccounts())) {
+
       this.accessToken = null;
       this.accounts = [];
+
       return false;
     }
 
@@ -474,9 +500,10 @@ export class myQApi {
 
       if(!response) {
 
-        this.log.error("myQ API: Unable to update device status from the myQ API. Acquiring a new access token.");
+        this.log.error("Unable to update device status from the myQ API. Acquiring a new access token.");
         this.accessToken = null;
         this.accounts = [];
+
         return false;
       }
 
@@ -500,7 +527,7 @@ export class myQApi {
         }
 
         // We've discovered a new device.
-        this.log.info("myQ API: Discovered device family %s: %s.", newDevice.device_family, this.getDeviceName(newDevice));
+        this.log.info("Discovered device family %s: %s.", newDevice.device_family, this.getDeviceName(newDevice));
 
       }
     }
@@ -516,7 +543,7 @@ export class myQApi {
         }
 
         // We've had a device disappear.
-        this.log.info("myQ API: Removed device family %s: %s.", existingDevice.device_family, this.getDeviceName(existingDevice));
+        this.log.info("Removed device family %s: %s.", existingDevice.device_family, this.getDeviceName(existingDevice));
 
       }
 
@@ -554,7 +581,7 @@ export class myQApi {
     // Check for errors.
     if(!response) {
 
-      this.log.error("myQ API: Unable to send the command to myQ servers. Acquiring a new access token.");
+      this.log.error("Unable to send the command to myQ servers. Acquiring a new access token.");
       this.accessToken = null;
       this.accounts = [];
       return false;
@@ -570,7 +597,8 @@ export class myQApi {
     const response = await this.retrieve("https://accounts" + this.myQCloud + "/api/v6.0/accounts");
 
     if(!response) {
-      this.log.error("myQ API: Unable to retrieve account information.");
+
+      this.log.error("Unable to retrieve account information.");
       return false;
     }
 
@@ -581,7 +609,8 @@ export class myQApi {
 
     // No account information returned.
     if(!data?.accounts) {
-      this.log.error("myQ API: Unable to retrieve account information from the myQ API.");
+
+      this.log.error("No account information found.");
       return false;
     }
 
@@ -623,10 +652,11 @@ export class myQApi {
   // Utility to generate a nicely formatted device string.
   public getDeviceName(device: myQDevice): string {
 
-    // A completely enumerated device will appear as:
-    // DeviceName [DeviceBrand] (serial number: Serial, gateway: GatewaySerial).
+    // A completely enumerated device will appear as: DeviceName [DeviceBrand] (serial number: Serial, gateway: GatewaySerial).
     let deviceString = device.name;
-    const hwInfo = this.getHwInfo(device.serial_number);
+
+    // Only grab hardware information for the hardware we know how to decode.
+    const hwInfo = device.device_family !== "gateway" ? this.getHwInfo(device.serial_number) : null;
 
     if(hwInfo) {
       deviceString += " [" + hwInfo.brand + " " + hwInfo.product + "]";
@@ -656,35 +686,41 @@ export class myQApi {
     // typically "GW", followed by 2 characters that are decoded according to the table below to
     // identify the device type and brand, with the remaining 8 characters representing the serial number.
     const HwInfo: {[index: string]: myQHwInfo} = {
-      "00": { brand: "Chamberlain",                   product: "Ethernet Gateway"          },
-      "01": { brand: "Liftmaster",                    product: "Ethernet Gateway"          },
-      "02": { brand: "Craftsman",                     product: "Ethernet Gateway"          },
-      "03": { brand: "Chamberlain",                   product: "WiFi Hub"                  },
-      "04": { brand: "Liftmaster",                    product: "WiFi Hub"                  },
-      "05": { brand: "Craftsman",                     product: "WiFi Hub"                  },
-      "0A": { brand: "Chamberlain",                   product: "WiFi GDO AC"               },
-      "0B": { brand: "Liftmaster",                    product: "WiFi GDO AC"               },
-      "0C": { brand: "Craftsman",                     product: "WiFi GDO AC"               },
-      "0D": { brand: "myQ Replacement Logic Board",   product: "WiFi GDO AC"               },
-      "0E": { brand: "Chamberlain",                   product: "WiFi GDO AC 3/4 HP"        },
-      "0F": { brand: "Liftmaster",                    product: "WiFi GDO AC 3/4 HP"        },
-      "10": { brand: "Craftsman",                     product: "WiFi GDO AC 3/4 HP"        },
-      "11": { brand: "myQ Replacement Logic Board",   product: "WiFi GDO AC 3/4 HP"        },
-      "12": { brand: "Chamberlain",                   product: "WiFi GDO DC 1.25 HP"       },
-      "13": { brand: "Liftmaster",                    product: "WiFi GDO DC 1.25 HP"       },
-      "14": { brand: "Craftsman",                     product: "WiFi GDO DC 1.25 HP"       },
-      "15": { brand: "myQ Replacement Logic Board",   product: "WiFi GDO DC 1.25 HP"       },
-      "20": { brand: "Chamberlain",                   product: "myQ Home Bridge"           },
-      "21": { brand: "Liftmaster",                    product: "myQ Home Bridge"           },
-      "23": { brand: "Chamberlain",                   product: "Smart Garage Hub"          },
-      "24": { brand: "Liftmaster",                    product: "Smart Garage Hub"          },
-      "27": { brand: "Liftmaster",                    product: "WiFi Wall Mount Opener"    },
-      "28": { brand: "Liftmaster Commercial",         product: "WiFi Wall Mount Operator"  },
-      "80": { brand: "Liftmaster EU",                 product: "Ethernet Gateway"          },
-      "81": { brand: "Chamberlain EU",                product: "Ethernet Gateway"          }
+
+      "00": { brand: "Chamberlain",                   product: "Ethernet Gateway"             },
+      "01": { brand: "Liftmaster",                    product: "Ethernet Gateway"             },
+      "02": { brand: "Craftsman",                     product: "Ethernet Gateway"             },
+      "03": { brand: "Chamberlain",                   product: "WiFi Hub"                     },
+      "04": { brand: "Liftmaster",                    product: "WiFi Hub"                     },
+      "05": { brand: "Craftsman",                     product: "WiFi Hub"                     },
+      "08": { brand: "Liftmaster",                    product: "WiFi GDO DC w/Battery Backup" },
+      "09": { brand: "Chamberlain",                   product: "WiFi GDO DC w/Battery Backup" },
+      "0A": { brand: "Chamberlain",                   product: "WiFi GDO AC"                  },
+      "0B": { brand: "Liftmaster",                    product: "WiFi GDO AC"                  },
+      "0C": { brand: "Craftsman",                     product: "WiFi GDO AC"                  },
+      "0D": { brand: "myQ Replacement Logic Board",   product: "WiFi GDO AC"                  },
+      "0E": { brand: "Chamberlain",                   product: "WiFi GDO AC 3/4 HP"           },
+      "0F": { brand: "Liftmaster",                    product: "WiFi GDO AC 3/4 HP"           },
+      "10": { brand: "Craftsman",                     product: "WiFi GDO AC 3/4 HP"           },
+      "11": { brand: "myQ Replacement Logic Board",   product: "WiFi GDO AC 3/4 HP"           },
+      "12": { brand: "Chamberlain",                   product: "WiFi GDO DC 1.25 HP"          },
+      "13": { brand: "Liftmaster",                    product: "WiFi GDO DC 1.25 HP"          },
+      "14": { brand: "Craftsman",                     product: "WiFi GDO DC 1.25 HP"          },
+      "15": { brand: "myQ Replacement Logic Board",   product: "WiFi GDO DC 1.25 HP"          },
+      "20": { brand: "Chamberlain",                   product: "myQ Home Bridge"              },
+      "21": { brand: "Liftmaster",                    product: "myQ Home Bridge"              },
+      "23": { brand: "Chamberlain",                   product: "Smart Garage Hub"             },
+      "24": { brand: "Liftmaster",                    product: "Smart Garage Hub"             },
+      "27": { brand: "Liftmaster",                    product: "WiFi Wall Mount Opener"       },
+      "28": { brand: "Liftmaster Commercial",         product: "WiFi Wall Mount Operator"     },
+      "33": { brand: "Chamberlain",                   product: "Smart Garage Control"         },
+      "34": { brand: "Liftmaster",                    product: "Smart Garage Control"         },
+      "80": { brand: "Liftmaster EU",                 product: "Ethernet Gateway"             },
+      "81": { brand: "Chamberlain EU",                product: "Ethernet Gateway"             }
     };
 
     if(serial?.length < 4) {
+
       return null;
     }
 
@@ -710,7 +746,40 @@ export class myQApi {
   // Utility to let us streamline error handling and return checking from the myQ API.
   private async retrieve(url: string, options: RequestOptions = {}, overrideHeaders = false, decodeResponse = true, isRetry = false): Promise<Response | null> {
 
-    const isRedirect = (code: number): boolean => [301, 302, 303, 307, 308].some(x => x === code);
+    // Catch redirects:
+    //
+    // 301: Moved permanently.
+    // 302: Found.
+    // 303: See other.
+    // 307: Temporary redirect.
+    // 308: Permanent redirect.
+    const isRedirect = (code: number): boolean => [ 301, 302, 303, 307, 308 ].some(x => x === code);
+
+    // Catch myQ credential-related issues:
+    //
+    // 401: Unauthorized.
+    const isCredentialsIssue = (code: number): boolean => [ 401 ].some(x => x === code);
+
+    // Catch myQ server-side issues:
+    //
+    // 400: Bad request.
+    // 500: Internal server error.
+    // 502: Bad gateway.
+    // 503: Service temporarily unavailable.
+    const isServerSideIssue = (code: number): boolean => [ 400, 500, 502, 503 ].some(x => x === code);
+
+    const retry = async (logMessage: string): Promise<Response | null> => {
+
+      // Retry when we have a connection issue, but no more than once.
+      if(!isRetry) {
+
+        this.log.debug(logMessage + " Retrying the API call.");
+        return this.retrieve(url, options, overrideHeaders, decodeResponse, true);
+      }
+
+      this.log.error("%s.", logMessage);
+      return null;
+    };
 
     let response: Response;
 
@@ -721,6 +790,7 @@ export class myQApi {
     }
 
     try {
+
       response = await this.myqRetrieve(url, options);
 
       // The caller will sort through responses instead of us.
@@ -729,17 +799,23 @@ export class myQApi {
         return response;
       }
 
-      // Bad username and password.
-      if(response.status === 401) {
+      // Invalid login credentials.
+      if(!response.ok && isCredentialsIssue(response.status)) {
 
-        this.log.error("myQ API: Invalid myQ credentials given. Check your login and password.");
+        this.log.error("Invalid myQ credentials given. Check your login and password.");
         return null;
+      }
+
+      // myQ API issues at the server end.
+      if(!response.ok && isServerSideIssue(response.status)) {
+
+        return retry("Temporary myQ API server-side issues encountered: " + response.status.toString() + ".");
       }
 
       // Some other unknown error occurred.
       if(!response.ok && !isRedirect(response.status)) {
 
-        this.log.error("myQ API: %s Error: %s %s", url, response.status, response.statusText);
+        this.log.error("Error: %s %s", response.status, response.statusText);
         return null;
       }
 
@@ -752,36 +828,34 @@ export class myQApi {
         switch(error.code) {
 
           case "ECONNREFUSED":
+          case "ERR_HTTP2_STREAM_CANCEL":
 
-            this.log.error("myQ API: Connection refused.");
+            return retry("Connection refused.");
             break;
 
           case "ECONNRESET":
 
-            // Retry on connection reset, but no more than once.
-            if(!isRetry) {
-
-              this.log.debug("myQ API: Connection has been reset. Retrying the API action.");
-              return this.retrieve(url, options, overrideHeaders, decodeResponse, true);
-            }
-
-            this.log.error("myQ API: Connection has been reset.");
-
+            return retry("Connection has been reset.");
             break;
 
           case "ENOTFOUND":
 
-            this.log.error("myQ API: Hostname or IP address not found.");
+            return retry("Hostname or IP address not found.");
+            break;
+
+          case "ETIMEDOUT":
+
+            return retry("Connection timed out.");
             break;
 
           case "UNABLE_TO_VERIFY_LEAF_SIGNATURE":
 
-            this.log.error("myQ API: Unable to verify the myQ TLS security certificate.");
+            return retry("Unable to verify the myQ TLS security certificate.");
             break;
 
           default:
 
-            this.log.error(error.message);
+            this.log.error("%s - %s", error.code, error.message);
         }
 
       } else {
