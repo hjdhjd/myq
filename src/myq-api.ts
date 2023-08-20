@@ -72,6 +72,7 @@ export class myQApi {
   private refreshToken: string;
   private tokenScope: string;
   private accessTokenTimestamp!: number;
+  private apiReturnStatus: number;
   private email: string;
   private password: string;
   private accounts: string[];
@@ -99,6 +100,7 @@ export class myQApi {
 
     this.accessToken = null;
     this.accounts = [];
+    this.apiReturnStatus = 0;
     this.email = email;
     this.headers = new Headers();
     this.password = password;
@@ -581,6 +583,12 @@ export class myQApi {
     // Check for errors.
     if(!response) {
 
+      // If it's a 403 error, the command was likely delivered to an unavailable or offline myQ device.
+      if(this.apiReturnStatus === 403) {
+
+        return false;
+      }
+
       this.log.error("Unable to send the command to myQ servers. Acquiring a new access token.");
       this.accessToken = null;
       this.accounts = [];
@@ -789,38 +797,45 @@ export class myQApi {
       options.headers = this.headers;
     }
 
+    // Reset our API return status.
+    this.apiReturnStatus = 0;
+
     try {
 
       response = await this.myqRetrieve(url, options);
 
-      // The caller will sort through responses instead of us.
-      if(!decodeResponse) {
+      // Save our return status.
+      this.apiReturnStatus = response.status;
+
+      // The caller will sort through responses instead of us, or we've got a successful API call, or we've been redirected.
+      if(!decodeResponse || response.ok || isRedirect(response.status)) {
 
         return response;
       }
 
       // Invalid login credentials.
-      if(!response.ok && isCredentialsIssue(response.status)) {
+      if(isCredentialsIssue(response.status)) {
 
         this.log.error("Invalid myQ credentials given. Check your login and password.");
         return null;
       }
 
+      // 403: Command forbidden. In myQ parlance, this usually means the device is unavailable or offline.
+      if(response.status === 403) {
+
+        this.log.error("Forbidden API call. This error is typically due to an offline or unavailable myQ device.");
+        return null;
+      }
+
       // myQ API issues at the server end.
-      if(!response.ok && isServerSideIssue(response.status)) {
+      if(isServerSideIssue(response.status)) {
 
         return retry("Temporary myQ API server-side issues encountered: " + response.status.toString() + ".");
       }
 
       // Some other unknown error occurred.
-      if(!response.ok && !isRedirect(response.status)) {
-
-        this.log.error("Error: %s %s", response.status, response.statusText);
-        return null;
-      }
-
-      return response;
-
+      this.log.error("API call returned error: %s.", response.status);
+      return null;
     } catch(error) {
 
       if(error instanceof FetchError) {
