@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file. This project uses [semantic versioning](https://semver.org/).
 
+# 7.4.0 (2023-08-20)
+  * Improvement: further refine error handling for offline devices.
+  * Housekeeping.
+
 # 7.3.0 (2023-08-19)
   * Improvement: update the model/device lookup database, improve error handling for myQ cloud errors, and other optimizations.
   * Housekeeping.
