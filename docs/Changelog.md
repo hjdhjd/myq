@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file. This project uses [semantic versioning](https://semver.org/).
 
+# 7.4.1 (2023-08-21)
+  * Housekeeping.
+
 # 7.4.0 (2023-08-20)
   * Improvement: further refine error handling for offline devices.
   * Housekeeping.
