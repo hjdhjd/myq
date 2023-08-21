@@ -785,7 +785,7 @@ export class myQApi {
         return this.retrieve(url, options, overrideHeaders, decodeResponse, true);
       }
 
-      this.log.error("%s.", logMessage);
+      this.log.error(logMessage);
       return null;
     };
 
