@@ -92,6 +92,6 @@ Returns: `myQHwInfo` if found, or `null` if we can't deduce what the hardware an
 This is mostly of interest to the true developer nerds amongst us.
 
 [![License](https://img.shields.io/npm/l/@hjdhjd/myq?color=%230559C9&logo=open%20source%20initiative&logoColor=%23FFFFFF&style=for-the-badge)](https://github.com/hjdhjd/myq/blob/main/LICENSE.md)
-[![Build Status](https://img.shields.io/github/workflow/status/hjdhjd/myq/Continuous%20Integration?color=%230559C9&logo=github-actions&logoColor=%23FFFFFF&style=for-the-badge)](https://github.com/hjdhjd/myq/actions?query=workflow%3A%22Continuous+Integration%22)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/hjdhjd/myq/ci.yml?branch=main&color=%230559C9&logo=github-actions&logoColor=%23FFFFFF&style=for-the-badge)](https://github.com/hjdhjd/myq/actions?query=workflow%3A%22Continuous+Integration%22)
 [![Dependencies](https://img.shields.io/librariesio/release/npm/@hjdhjd/myq?color=%230559C9&logo=dependabot&style=for-the-badge)](https://libraries.io/npm/@hjdhjd/myq)
 [![GitHub commits since latest release (by SemVer)](https://img.shields.io/github/commits-since/hjdhjd/myq/latest?color=%230559C9&logo=github&sort=semver&style=for-the-badge)](https://github.com/hjdhjd/myq/commits/main)
