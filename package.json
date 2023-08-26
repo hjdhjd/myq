@@ -1,7 +1,7 @@
 {
   "name": "@hjdhjd/myq",
   "type": "module",
-  "version": "7.4.1",
+  "version": "7.4.2",
   "displayName": "myQ API",
   "description": "A nearly complete and modern implementation of the Liftmaster / Chamberlain myQ API.",
   "author": {
@@ -41,12 +41,12 @@
     "watch": "npm run build && npm link && nodemon"
   },
   "devDependencies": {
-    "@types/node": "20.5.1",
-    "@typescript-eslint/eslint-plugin": "6.4.0",
-    "@typescript-eslint/parser": "6.4.0",
-    "eslint": "8.47.0",
+    "@types/node": "20.5.6",
+    "@typescript-eslint/eslint-plugin": "6.4.1",
+    "@typescript-eslint/parser": "6.4.1",
+    "eslint": "8.48.0",
     "rimraf": "5.0.1",
-    "typescript": "5.1.6"
+    "typescript": "5.2.2"
   },
   "dependencies": {
     "@adobe/fetch": "4.0.13",
