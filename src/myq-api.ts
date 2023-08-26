@@ -765,16 +765,16 @@ export class myQApi {
 
     // Catch myQ credential-related issues:
     //
+    // 400: Bad request.
     // 401: Unauthorized.
-    const isCredentialsIssue = (code: number): boolean => [ 401 ].some(x => x === code);
+    const isCredentialsIssue = (code: number): boolean => [ 400, 401 ].some(x => x === code);
 
     // Catch myQ server-side issues:
     //
-    // 400: Bad request.
     // 500: Internal server error.
     // 502: Bad gateway.
     // 503: Service temporarily unavailable.
-    const isServerSideIssue = (code: number): boolean => [ 400, 500, 502, 503 ].some(x => x === code);
+    const isServerSideIssue = (code: number): boolean => [ 500, 502, 503 ].some(x => x === code);
 
     const retry = async (logMessage: string): Promise<Response | null> => {
 
@@ -816,7 +816,7 @@ export class myQApi {
       // Invalid login credentials.
       if(isCredentialsIssue(response.status)) {
 
-        this.log.error("Invalid myQ credentials given. Check your login and password.");
+        this.log.error("Invalid myQ credentials given: Check your username and password. If they are correct, the myQ API may be experiencing temporary issues.");
         return null;
       }
 
