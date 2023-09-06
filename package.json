@@ -1,21 +1,20 @@
 {
-  "name": "@hjdhjd/myq",
-  "type": "module",
-  "version": "7.4.2",
+  "name": "@brbeaird/myq",
+  "version": "1.0.2",
   "displayName": "myQ API",
-  "description": "A nearly complete and modern implementation of the Liftmaster / Chamberlain myQ API.",
+  "description": "A commonJS fork of hjdhjd's myq implementation",
   "author": {
     "name": "HJD",
-    "url": "https://github.com/hjdhjd"
+    "url": "https://github.com/brbeaird"
   },
-  "homepage": "https://github.com/hjdhjd/myq#readme",
+  "homepage": "https://github.com/brbeaird/myq#readme",
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git://github.com/hjdhjd/myq.git"
+    "url": "git://github.com/brbeaird/myq.git"
   },
   "bugs": {
-    "url": "https://github.com/hjdhjd/myq/issues"
+    "url": "https://github.com/brbeaird/myq/issues"
   },
   "keywords": [
     "chamberlain",
@@ -28,7 +27,7 @@
     "remote"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=16"
   },
   "main": "dist/index.js",
   "scripts": {
@@ -49,8 +48,8 @@
     "typescript": "5.2.2"
   },
   "dependencies": {
-    "@adobe/fetch": "4.0.13",
+    "@adobe/fetch": "^3.6.5",
     "node-html-parser": "6.1.6",
-    "pkce-challenge": "4.0.1"
+    "pkce-challenge": "^3.0.0"
   }
 }
