@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file. This project uses [semantic versioning](https://semver.org/).
 
+# 7.5.0 (2023-09-15)
+  * Improvement: API resiliency has been substantively improved through incorporating automatic retries across myQ regions. This should improve robustness across the occasional cloud infrastructure challenges that the myQ API encounters.
+  * New feature: Added a `login()` function. This is now a required first step prior to using the API for any other calls. The constructor no longer requires login credentials. See the README for details.
+  * Housekeeping.
+
 # 7.4.2 (2023-08-26)
   * Housekeeping.
 
