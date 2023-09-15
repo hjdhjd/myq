@@ -792,7 +792,7 @@ export class myQApi {
   // Utility to let us streamline error handling and return checking from the myQ API.
   private async retrieve(url: string, options: RequestOptions = {}, overrideHeaders = false, decodeResponse = true, isRetry = 0): Promise<Response | null> {
 
-    // This could be done with regular expressions, but in the interests of easier readability and maintenance, we parse the URL with a URL object.
+    // This could be done with regular expressions, but in the interest of easier readability and maintenance, we parse the URL with a URL object.
     const retrieveUrl = new URL(url);
 
     // Retrieve the first part of the hostname.
