@@ -46,17 +46,21 @@ npm install @hjdhjd/myq
 
 If you'd like to see all this in action in a well-documented, real-world example, please take a good look at my [homebridge-myq](https://github.com/hjdhjd/homebridge-myq) project. It relies heavily on this library for the core functionality it provides.
 
-### myQApi(email: string, password: string [, log: myQLogging])
-Initialize the myQ API using the myQ account information contained in `email` and `password`. `log` is an optional parameter that enables you to customize the type of logging that can be generated, including debug logging. If `log` isn't specified, the myQ API will default to logging to the console.
+### myQApi(log: myQLogging)
+Initialize the myQ API. `log` is an optional parameter that enables you to customize the type of logging that can be generated, including debug logging. If `log` isn't specified, the myQ API will default to logging to the console.
+
+### login(email: string, password: string)
+Login to the myQ API using the myQ account information contained in `email` and `password` and call `refreshDevices()` to initialize the API and populate the list of myQ devices associated with a given account.
+
+**Note: `login()` must be called before any other API function can be used.**
+
+Returns: `true` if successful, `false` otherwise.
 
 ### refreshDevices()
 This is where the magic happens. This function:
 
-* Logs into the myQ API, if we don't already have an access token.
 * If we do have an access token and it's nearly time to refresh it, it will do so.
 * It then requests a refresh of the myQ state and device information for all the myQ devices associated with the currently logged in account. There are failsafes in place to ensure it can't be called more than once every two seconds in order to prevent overtaxing the myQ API and potentially lockout an account.
-
-**Note: `refreshDevices()` must be called at least once after instantiating the API in order to populate the list of myQ devices associated with an account.**
 
 Returns: `true` if successful, `false` otherwise.
 
