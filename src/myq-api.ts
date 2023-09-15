@@ -1,6 +1,6 @@
-/* Copyright(C) 2017-2022, HJD (https://github.com/hjdhjd). All rights reserved.
+/* Copyright(C) 2017-2023, HJD (https://github.com/hjdhjd). All rights reserved.
  *
- * myq-api.ts: Our myQ API implementation.
+ * myq-api.ts: Our modern myQ v6 API implementation.
  */
 import { ALPNProtocol, FetchError, Headers, Request, RequestOptions, Response, context } from "@adobe/fetch";
 import { MYQ_API_CLIENT_ID, MYQ_API_CLIENT_SECRET, MYQ_API_REDIRECT_URI } from "./settings.js";
@@ -61,8 +61,7 @@ import util from "node:util";
  * it either doesn't exist or hasn't been discovered yet.
  */
 
-const myQDomain = "myq-cloud.com";
-const myQRegions = [ "east", "west" ];
+const myQRegions = [ "", "east", "west" ];
 
 export class myQApi {
 
@@ -73,18 +72,18 @@ export class myQApi {
   private tokenScope: string;
   private accessTokenTimestamp!: number;
   private apiReturnStatus: number;
-  private email: string;
-  private password: string;
+  private email: string | null;
+  private password: string | null;
   private accounts: string[];
   private headers: Headers;
   private log: myQLogging;
   private lastAuthenticateCall!: number;
   private lastRefreshDevicesCall!: number;
   private myqRetrieve: (url: string|Request, options?: RequestOptions) => Promise<Response>;
-  private region: string;
+  private region: number;
 
   // Initialize this instance with our login information.
-  constructor(email: string, password: string, log?: myQLogging, region = "") {
+  constructor(log?: myQLogging) {
 
     // If we didn't get passed a logging parameter, by default we log to the console.
     log = log ?? {
@@ -101,12 +100,12 @@ export class myQApi {
     this.accessToken = null;
     this.accounts = [];
     this.apiReturnStatus = 0;
-    this.email = email;
+    this.email = null;
     this.headers = new Headers();
-    this.password = password;
+    this.password = null;
     this.refreshInterval = 0;
     this.refreshToken = "";
-    this.region = "";
+    this.region = 0;
     this.tokenScope = "";
 
     this.log = {
@@ -117,19 +116,26 @@ export class myQApi {
       warn: (message: string, ...parameters: unknown[]): void => log?.warn("myQ API: " + message, ...parameters)
     };
 
-    // Discern if we've been explicitly directed to a particular myQ cloud region.
-    region = region.toLowerCase();
-    this.region = myQRegions.some(x => x === region) ? region : "";
-
     // The myQ API v6 doesn't seem to require an HTTP user agent to be set - so we don't.
     const { fetch } = context({ alpnProtocols: [ ALPNProtocol.ALPN_HTTP2 ], userAgent: "" });
     this.myqRetrieve = fetch;
   }
 
+  // Initialize this instance with our login information.
+  public async login(email: string, password: string): Promise<boolean> {
+
+    this.email = email;
+    this.password = password;
+    this.accessToken = null;
+    this.lastAuthenticateCall = this.lastRefreshDevicesCall = 0;
+
+    return this.refreshDevices();
+  }
+
   // Transmit the PKCE challenge and retrieve the myQ OAuth authorization page to prepare to login.
   private async oauthGetAuthPage(codeChallenge: string): Promise<Response | null> {
 
-    const authEndpoint = new URL("https://partner-identity" + this.myQCloud + "/connect/authorize");
+    const authEndpoint = new URL("https://partner-identity.myq-cloud.com/connect/authorize");
 
     // Set the client identifier.
     authEndpoint.searchParams.set("client_id", "IOS_CGI_MYQ");
@@ -163,6 +169,12 @@ export class myQApi {
 
   // Login to the myQ API, using the retrieved authorization page.
   private async oauthLogin(authPage: Response): Promise<Response | null> {
+
+    // Sanity check.
+    if(!this.email || !this.password) {
+
+      return null;
+    }
 
     // Grab the cookie for the OAuth sequence. We need to deal with spurious additions to the cookie that gets returned by the myQ API.
     const cookie = this.trimSetCookie(authPage.headers.raw()["set-cookie"]);
@@ -223,7 +235,9 @@ export class myQApi {
 
     // Execute the redirect with the cleaned up cookies and we're done.
     const response = await this.retrieve(redirectUrl.toString(), {
+
       headers: {
+
         "Cookie": cookie
       },
       redirect: "manual"
@@ -283,12 +297,12 @@ export class myQApi {
       "scope": redirectUrl.searchParams.get("scope") as string
     });
 
-    // Now we execute the final login redirect that will validate the PKCE challenge and
-    // return our access and refresh tokens.
-    response = await this.retrieve("https://partner-identity" + this.myQCloud + "/connect/token", {
+    // Now we execute the final login redirect that will validate the PKCE challenge and return our access and refresh tokens.
+    response = await this.retrieve("https://partner-identity.myq-cloud.com/connect/token", {
 
       body: requestBody.toString(),
       headers: {
+
         "Content-Type": "application/x-www-form-urlencoded"
       },
       method: "POST"
@@ -310,6 +324,7 @@ export class myQApi {
 
     // Ensure we never try to refresh more frequently than every five minutes.
     if(this.refreshInterval < 300) {
+
       this.refreshInterval = 300;
     }
 
@@ -332,10 +347,11 @@ export class myQApi {
     });
 
     // Execute the refresh token request.
-    const response = await this.retrieve("https://partner-identity" + this.myQCloud + "/connect/token", {
+    const response = await this.retrieve("https://partner-identity.myq-cloud.com/connect/token", {
 
       body: requestBody.toString(),
       headers: {
+
         "Content-Type": "application/x-www-form-urlencoded"
       },
       method: "POST"
@@ -383,6 +399,7 @@ export class myQApi {
 
     // Clear out tokens from prior connections.
     if(this.accessToken) {
+
       firstConnection = false;
       this.accessToken = null;
       this.accounts = [];
@@ -392,10 +409,11 @@ export class myQApi {
     const token = await this.getOAuthToken();
 
     if(!token) {
+
       return false;
     }
 
-    const regionMsg = this.region ? " using the " + this.region + " myQ cloud region" : "";
+    const regionMsg = this.region ? " using the " + myQRegions[this.region] + " myQ cloud region" : "";
 
     // On initial plugin startup, let the user know we've successfully connected.
     if(firstConnection) {
@@ -414,6 +432,7 @@ export class myQApi {
 
     // Grab our account information for subsequent calls.
     if(!(await this.getAccounts())) {
+
       this.accessToken = null;
       this.accounts = [];
       return false;
@@ -430,21 +449,25 @@ export class myQApi {
 
     // We want to throttle how often we call this API to no more than once every 2 minutes.
     if((now - this.lastAuthenticateCall) < (2 * 60 * 1000)) {
+
       return (this.accounts.length && this.accessToken) ? true : false;
     }
 
     // If we don't have a access token yet, acquire one.
     if(!this.accounts.length || !this.accessToken) {
+
       return await this.acquireAccessToken();
     }
 
     // Is it time to refresh? If not, we're good for now.
     if((now - this.accessTokenTimestamp) < (this.refreshInterval * 1000)) {
+
       return true;
     }
 
     // Try refreshing our existing access token before resorting to acquiring a new one.
     if(await this.refreshOAuthToken()) {
+
       return true;
     }
 
@@ -452,6 +475,7 @@ export class myQApi {
 
     // Now generate a new access token.
     if(!(await this.acquireAccessToken())) {
+
       return false;
     }
 
@@ -461,10 +485,16 @@ export class myQApi {
   // Get the list of myQ devices associated with an account.
   public async refreshDevices(): Promise<boolean> {
 
+    // Sanity check.
+    if(!this.login || !this.password) {
+
+      this.log.error("You must login to the myQ API prior to calling this function.");
+      return false;
+    }
+
     const now = Date.now();
 
-    // We want to throttle how often we call this API as a failsafe. If we call it more
-    // than once every two seconds or so, bad things can happen on the myQ side leading
+    // We want to throttle how often we call this API as a failsafe. If we call it more than once every two seconds or so, bad things can happen on the myQ side leading
     // to potential account lockouts. The author definitely learned this one the hard way.
     if(this.lastRefreshDevicesCall && ((now - this.lastRefreshDevicesCall) < (2 * 1000))) {
 
@@ -498,7 +528,7 @@ export class myQApi {
 
       // Get the list of device information for this account.
       // eslint-disable-next-line no-await-in-loop
-      const response = await this.retrieve("https://devices" + this.myQCloud + "/api/v5.2/Accounts/" + accountId + "/Devices");
+      const response = await this.retrieve("https://devices.myq-cloud.com/api/v5.2/Accounts/" + accountId + "/Devices");
 
       if(!response) {
 
@@ -560,8 +590,16 @@ export class myQApi {
   // Execute an action on a myQ device.
   public async execute(device: myQDevice, command: string): Promise<boolean> {
 
+    // Sanity check.
+    if(!this.login || !this.password) {
+
+      this.log.error("You must login to the myQ API prior to calling this function.");
+      return false;
+    }
+
     // Validate and potentially refresh our access token.
     if(!(await this.refreshAccessToken())) {
+
       return false;
     }
 
@@ -571,12 +609,12 @@ export class myQApi {
     if(device.device_family === "lamp") {
 
       // Execute a command on a lamp device.
-      response = await this.retrieve("https://account-devices-lamp" + this.myQCloud + "/api/v5.2/Accounts/" + device.account_id +
+      response = await this.retrieve("https://account-devices-lamp.myq-cloud.com/api/v5.2/Accounts/" + device.account_id +
         "/lamps/" + device.serial_number + "/" + command, { method: "PUT" });
     } else {
 
       // By default, we assume we're targeting a garage door opener.
-      response = await this.retrieve("https://account-devices-gdo" + this.myQCloud + "/api/v5.2/Accounts/" + device.account_id +
+      response = await this.retrieve("https://account-devices-gdo.myq-cloud.com/api/v5.2/Accounts/" + device.account_id +
         "/door_openers/" + device.serial_number + "/" + command, { method: "PUT" });
     }
 
@@ -602,7 +640,7 @@ export class myQApi {
   private async getAccounts(): Promise<boolean> {
 
     // Get the account information.
-    const response = await this.retrieve("https://accounts" + this.myQCloud + "/api/v6.0/accounts");
+    const response = await this.retrieve("https://accounts.myq-cloud.com/api/v6.0/accounts");
 
     if(!response) {
 
@@ -628,17 +666,17 @@ export class myQApi {
     return true;
   }
 
-  // Utility to retrieve our domain.
-  private get myQCloud(): string {
-
-    return (this.region.length ? "-" + this.region : "") + "." + myQDomain;
-  }
-
   // Get the details of a specific device in the myQ device list.
   public getDevice(serial: string): myQDevice | null {
 
-    // Check to make sure we have fresh information from myQ. If it's less than a minute
-    // old, it looks good to us.
+    // Sanity check.
+    if(!this.login || !this.password) {
+
+      this.log.error("You must login to the myQ API prior to calling this function.");
+      return null;
+    }
+
+    // Check to make sure we have fresh information from myQ. If it's less than a minute old, it looks good to us.
     if(!this.devices || !this.lastRefreshDevicesCall || ((Date.now() - this.lastRefreshDevicesCall) > (60 * 1000))) {
 
       return null;
@@ -667,13 +705,16 @@ export class myQApi {
     const hwInfo = device.device_family !== "gateway" ? this.getHwInfo(device.serial_number) : null;
 
     if(hwInfo) {
+
       deviceString += " [" + hwInfo.brand + " " + hwInfo.product + "]";
     }
 
     if(device.serial_number) {
+
       deviceString += " (serial number: " + device.serial_number;
 
       if(device.parent_device_id) {
+
         deviceString += ", gateway: " + device.parent_device_id;
       }
 
@@ -686,13 +727,11 @@ export class myQApi {
   // Return device manufacturer and model information based on the serial number, if we can.
   public getHwInfo(serial: string): myQHwInfo | null {
 
-    // We only know about gateway devices and not individual openers, so we can only decode those.
-    // According to Liftmaster, here's how you can decode what device you're using:
+    // We only know about gateway devices and not individual openers, so we can only decode those. According to Liftmaster, here's how you decode device types:
     //
-    // The MyQ serial number for the Wi-Fi GDO, MyQ Home Bridge, MyQ Smart Garage Hub,
-    // MyQ Garage (Wi-Fi Hub) and Internet Gateway is 12 characters long. The first two characters,
-    // typically "GW", followed by 2 characters that are decoded according to the table below to
-    // identify the device type and brand, with the remaining 8 characters representing the serial number.
+    // The myQ serial number for the Wi-Fi GDO, myQ Home Bridge, myQ Smart Garage Hub, myQ Garage (Wi-Fi Hub) and Internet Gateway is 12 characters long. The first two
+    // characters, typically "GW", followed by 2 characters that are decoded according to the table below to identify the device type and brand, with the remaining
+    // 8 characters representing the serial number.
     const HwInfo: {[index: string]: myQHwInfo} = {
 
       "00": { brand: "Chamberlain",                   product: "Ethernet Gateway"             },
@@ -732,9 +771,8 @@ export class myQApi {
       return null;
     }
 
-    // Use the third and fourth characters as indices into the hardware matrix. Admittedly,
-    // we don't have a way to resolve the first two characters to ensure we are matching
-    // against the right category of devices.
+    // Use the third and fourth characters as indices into the hardware matrix. Admittedly, we don't have a way to resolve the first two characters to ensure we are
+    // matching against the right category of devices.
     return (HwInfo[serial[2] + serial[3]]) ?? null;
   }
 
@@ -752,7 +790,31 @@ export class myQApi {
   }
 
   // Utility to let us streamline error handling and return checking from the myQ API.
-  private async retrieve(url: string, options: RequestOptions = {}, overrideHeaders = false, decodeResponse = true, isRetry = false): Promise<Response | null> {
+  private async retrieve(url: string, options: RequestOptions = {}, overrideHeaders = false, decodeResponse = true, isRetry = 0): Promise<Response | null> {
+
+    // This could be done with regular expressions, but in the interests of easier readability and maintenance, we parse the URL with a URL object.
+    const retrieveUrl = new URL(url);
+
+    // Retrieve the first part of the hostname.
+    const hostname = retrieveUrl.hostname.split(".");
+
+    // Regular expression to test for whether we already have a region specifier in the hostname.
+    const regionRegex = new RegExp("^.*-(" + myQRegions.join("|") + ")$");
+
+    // Add our region-specific context to the hostname, if it's not already there.
+    if(!regionRegex.test(hostname[0])) {
+
+      // This is a retry request, meaning something went wrong with the original request. We retry in another region as a resiliency measure to connecting to the API.
+      if(isRetry) {
+
+        this.region = ++this.region % myQRegions.length;
+        this.log.info("Switching to myQ cloud region: %s.", myQRegions[this.region].length ? myQRegions[this.region] : "auto");
+      }
+
+      hostname[0] += this.region ? "-" + myQRegions[this.region] : "";
+    }
+
+    retrieveUrl.hostname = hostname.join(".");
 
     // Catch redirects:
     //
@@ -771,18 +833,19 @@ export class myQApi {
 
     // Catch myQ server-side issues:
     //
+    // 429: Too many requests.
     // 500: Internal server error.
     // 502: Bad gateway.
     // 503: Service temporarily unavailable.
-    const isServerSideIssue = (code: number): boolean => [ 500, 502, 503 ].some(x => x === code);
+    const isServerSideIssue = (code: number): boolean => [ 429, 500, 502, 503 ].some(x => x === code);
 
     const retry = async (logMessage: string): Promise<Response | null> => {
 
       // Retry when we have a connection issue, but no more than once.
-      if(!isRetry) {
+      if(isRetry < 3) {
 
         this.log.debug(logMessage + " Retrying the API call.");
-        return this.retrieve(url, options, overrideHeaders, decodeResponse, true);
+        return this.retrieve(url, options, overrideHeaders, decodeResponse, ++isRetry);
       }
 
       this.log.error(logMessage);
@@ -802,7 +865,7 @@ export class myQApi {
 
     try {
 
-      response = await this.myqRetrieve(url, options);
+      response = await this.myqRetrieve(retrieveUrl.toString(), options);
 
       // Save our return status.
       this.apiReturnStatus = response.status;
@@ -816,8 +879,7 @@ export class myQApi {
       // Invalid login credentials.
       if(isCredentialsIssue(response.status)) {
 
-        this.log.error("Invalid myQ credentials given: Check your username and password. If they are correct, the myQ API may be experiencing temporary issues.");
-        return null;
+        return retry("Invalid myQ credentials given: Check your username and password. If they are correct, the myQ API may be experiencing temporary issues.");
       }
 
       // 403: Command forbidden. In myQ parlance, this usually means the device is unavailable or offline.
@@ -870,12 +932,12 @@ export class myQApi {
 
           default:
 
-            this.log.error("%s - %s", error.code, error.message);
+            return retry(error.code.toString() + " - " + error.message);
         }
 
       } else {
 
-        this.log.error("Unknown fetch error: %s", error);
+        return retry("Unknown fetch error: " + (error as Error).toString());
       }
 
       return null;
