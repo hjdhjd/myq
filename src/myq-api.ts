@@ -5,6 +5,7 @@
 import { ALPNProtocol, FetchError, Headers, Request, RequestOptions, Response, context } from "@adobe/fetch";
 import { MYQ_API_CLIENT_ID, MYQ_API_CLIENT_SECRET, MYQ_API_REDIRECT_URI } from "./settings.js";
 import { myQAccount, myQDevice, myQDeviceList, myQHwInfo, myQToken } from "./myq-types.js";
+import http from "node:http";
 import { myQLogging } from "./myq-logging.js";
 import { parse } from "node-html-parser";
 import pkceChallenge from "pkce-challenge";
@@ -804,11 +805,11 @@ export class myQApi {
     // Add our region-specific context to the hostname, if it's not already there.
     if(!regionRegex.test(hostname[0])) {
 
-      // This is a retry request, meaning something went wrong with the original request. We retry in another region as a resiliency measure to connecting to the API.
+      // This is a retry request, meaning something went wrong with the original request. We retry in another region as a resiliency measure.
       if(isRetry) {
 
         this.region = ++this.region % myQRegions.length;
-        this.log.info("Switching to myQ cloud region: %s.", myQRegions[this.region].length ? myQRegions[this.region] : "auto");
+        this.log.debug("Switching to myQ cloud region: %s.", myQRegions[this.region].length ? myQRegions[this.region] : "auto");
       }
 
       hostname[0] += this.region ? "-" + myQRegions[this.region] : "";
@@ -837,7 +838,8 @@ export class myQApi {
     // 500: Internal server error.
     // 502: Bad gateway.
     // 503: Service temporarily unavailable.
-    const isServerSideIssue = (code: number): boolean => [ 429, 500, 502, 503 ].some(x => x === code);
+    // 504: Gateway timeout.
+    const isServerSideIssue = (code: number): boolean => [ 429, 500, 502, 503, 504 ].some(x => x === code);
 
     const retry = async (logMessage: string): Promise<Response | null> => {
 
@@ -873,6 +875,11 @@ export class myQApi {
       // The caller will sort through responses instead of us, or we've got a successful API call, or we've been redirected.
       if(!decodeResponse || response.ok || isRedirect(response.status)) {
 
+        if(isRetry) {
+
+          this.log.info("Switched to myQ cloud region: %s.", myQRegions[this.region].length ? myQRegions[this.region] : "auto");
+        }
+
         return response;
       }
 
@@ -889,14 +896,16 @@ export class myQApi {
         return null;
       }
 
+      const httpStatusMessage = response.status + (http.STATUS_CODES[response.status] ? " - " + http.STATUS_CODES[response.status] : "");
+
       // myQ API issues at the server end.
       if(isServerSideIssue(response.status)) {
 
-        return retry("Temporary myQ API server-side issues encountered: " + response.status.toString() + ".");
+        return retry("Temporary myQ API server-side issues encountered: " + httpStatusMessage + ".");
       }
 
       // Some other unknown error occurred.
-      this.log.error("API call returned error: %s.", response.status);
+      this.log.error("API call returned error: %s.", httpStatusMessage);
       return null;
     } catch(error) {
 
