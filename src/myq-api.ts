@@ -192,7 +192,7 @@ export class myQApi {
     }
 
     // Set the login info.
-    const loginBody = new URLSearchParams({ "Email": this.email, "Password": this.password, "UnifiedFlowRequested": "True",
+    const loginBody = new URLSearchParams({ "Email": this.email, "Password": this.password, "UnifiedFlowRequested": "true",
       "__RequestVerificationToken": requestVerificationToken, "brand": "myq" });
 
     // Login and we're done.
@@ -840,8 +840,8 @@ export class myQApi {
     // 502: Bad gateway.
     // 503: Service temporarily unavailable.
     // 504: Gateway timeout.
-    // 521: Web server down. (Cloudflare-specific)
-    // 522: Connection timed out. (Cloudflare-specific)
+    // 521: Web server down (Cloudflare-specific).
+    // 522: Connection timed out (Cloudflare-specific).
     const isServerSideIssue = (code: number): boolean => [ 429, 500, 502, 503, 504, 521, 522 ].includes(code);
 
     const retry = async (logMessage: string): Promise<Response | null> => {
