@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file. This project uses [semantic versioning](https://semver.org/).
 
+# 7.5.2 (2023-10-12)
+  * Fix: myQ has begun adapting their OAuth flow and tightening up some tidbits. We adapt. Hat tip to @drysart and @justinlindh for the legwork on this one.
+
 # 7.5.1 (2023-09-17)
   * Housekeeping.
 
