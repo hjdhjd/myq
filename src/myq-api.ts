@@ -139,7 +139,7 @@ export class myQApi {
     const authEndpoint = new URL("https://partner-identity.myq-cloud.com/connect/authorize");
 
     // Set the client identifier.
-    authEndpoint.searchParams.set("client_id", "IOS_CGI_MYQ");
+    authEndpoint.searchParams.set("client_id", MYQ_API_CLIENT_ID);
 
     // Set the PKCE code challenge.
     authEndpoint.searchParams.set("code_challenge", codeChallenge);
@@ -148,7 +148,7 @@ export class myQApi {
     authEndpoint.searchParams.set("code_challenge_method", "S256");
 
     // Set the redirect URI to the myQ app.
-    authEndpoint.searchParams.set("redirect_uri", "com.myqops://ios");
+    authEndpoint.searchParams.set("redirect_uri", MYQ_API_REDIRECT_URI);
 
     // Set the response type.
     authEndpoint.searchParams.set("response_type", "code");
@@ -192,7 +192,8 @@ export class myQApi {
     }
 
     // Set the login info.
-    const loginBody = new URLSearchParams({ "Email": this.email, "Password": this.password, "__RequestVerificationToken": requestVerificationToken });
+    const loginBody = new URLSearchParams({ "Email": this.email, "Password": this.password, "UnifiedFlowRequested": "True",
+      "__RequestVerificationToken": requestVerificationToken, "brand": "myq" });
 
     // Login and we're done.
     const response = await this.retrieve(authPage.url, {
@@ -200,6 +201,7 @@ export class myQApi {
       body: loginBody.toString(),
       headers: {
 
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
         "Content-Type": "application/x-www-form-urlencoded",
         "Cookie": cookie
       },
@@ -289,13 +291,10 @@ export class myQApi {
     // Create the request to get our access and refresh tokens.
     const requestBody = new URLSearchParams({
 
-      "client_id": MYQ_API_CLIENT_ID,
-      "client_secret": Buffer.from(MYQ_API_CLIENT_SECRET, "base64").toString(),
       "code": redirectUrl.searchParams.get("code") as string,
       "code_verifier": pkce.code_verifier,
       "grant_type": "authorization_code",
-      "redirect_uri": MYQ_API_REDIRECT_URI,
-      "scope": redirectUrl.searchParams.get("scope") as string
+      "redirect_uri": MYQ_API_REDIRECT_URI
     });
 
     // Now we execute the final login redirect that will validate the PKCE challenge and return our access and refresh tokens.
@@ -304,6 +303,8 @@ export class myQApi {
       body: requestBody.toString(),
       headers: {
 
+        "Accept": "*/*",
+        "Authorization": "Basic " + Buffer.from(MYQ_API_CLIENT_ID + ":").toString("base64"),
         "Content-Type": "application/x-www-form-urlencoded"
       },
       method: "POST"
@@ -824,13 +825,13 @@ export class myQApi {
     // 303: See other.
     // 307: Temporary redirect.
     // 308: Permanent redirect.
-    const isRedirect = (code: number): boolean => [ 301, 302, 303, 307, 308 ].some(x => x === code);
+    const isRedirect = (code: number): boolean => [ 301, 302, 303, 307, 308 ].includes(code);
 
     // Catch myQ credential-related issues:
     //
     // 400: Bad request.
     // 401: Unauthorized.
-    const isCredentialsIssue = (code: number): boolean => [ 400, 401 ].some(x => x === code);
+    const isCredentialsIssue = (code: number): boolean => [ 400, 401 ].includes(code);
 
     // Catch myQ server-side issues:
     //
@@ -839,7 +840,9 @@ export class myQApi {
     // 502: Bad gateway.
     // 503: Service temporarily unavailable.
     // 504: Gateway timeout.
-    const isServerSideIssue = (code: number): boolean => [ 429, 500, 502, 503, 504 ].some(x => x === code);
+    // 521: Web server down. (Cloudflare-specific)
+    // 522: Connection timed out. (Cloudflare-specific)
+    const isServerSideIssue = (code: number): boolean => [ 429, 500, 502, 503, 504, 521, 522 ].includes(code);
 
     const retry = async (logMessage: string): Promise<Response | null> => {
 

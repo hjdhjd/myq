@@ -4,10 +4,10 @@
  */
 
 // myQ OAuth client identifier.
-export const MYQ_API_CLIENT_ID = "IOS_CGI_MYQ";
+export const MYQ_API_CLIENT_ID = "ANDROID_CGI_MYQ";
 
 // myQ OAuth client secret.
 export const MYQ_API_CLIENT_SECRET = "VUQ0RFhuS3lQV3EyNUJTdw==";
 
 // myQ OAuth redict URI.
-export const MYQ_API_REDIRECT_URI = "com.myqops://ios";
+export const MYQ_API_REDIRECT_URI = "com.myqops://android";
