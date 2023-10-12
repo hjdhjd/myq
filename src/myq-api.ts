@@ -199,9 +199,10 @@ export class myQApi {
 
       body: loginBody.toString(),
       headers: {
-
+        "Authorization": "Basic SU9TX0NHSV9NWVE6",
         "Content-Type": "application/x-www-form-urlencoded",
-        "Cookie": cookie
+        "Cookie": cookie,
+        "Accept": "*/*"
       },
       method: "POST",
       redirect: "manual"
@@ -289,13 +290,13 @@ export class myQApi {
     // Create the request to get our access and refresh tokens.
     const requestBody = new URLSearchParams({
 
-      "client_id": MYQ_API_CLIENT_ID,
-      "client_secret": Buffer.from(MYQ_API_CLIENT_SECRET, "base64").toString(),
+      // "client_id": MYQ_API_CLIENT_ID,
+      // "client_secret": Buffer.from(MYQ_API_CLIENT_SECRET, "base64").toString(),
       "code": redirectUrl.searchParams.get("code") as string,
       "code_verifier": pkce.code_verifier,
       "grant_type": "authorization_code",
-      "redirect_uri": MYQ_API_REDIRECT_URI,
-      "scope": redirectUrl.searchParams.get("scope") as string
+      "redirect_uri": MYQ_API_REDIRECT_URI
+      // "scope": redirectUrl.searchParams.get("scope") as string
     });
 
     // Now we execute the final login redirect that will validate the PKCE challenge and return our access and refresh tokens.
