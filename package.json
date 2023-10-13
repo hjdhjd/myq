@@ -1,21 +1,20 @@
 {
-  "name": "@hjdhjd/myq",
-  "type": "module",
-  "version": "7.5.2",
+  "name": "@brbeaird/myq",
+  "version": "1.0.3",
   "displayName": "myQ API",
-  "description": "A nearly complete and modern implementation of the Liftmaster / Chamberlain myQ API.",
+  "description": "A commonJS fork of hjdhjd's myq implementation",
   "author": {
     "name": "HJD",
-    "url": "https://github.com/hjdhjd"
+    "url": "https://github.com/brbeaird"
   },
-  "homepage": "https://github.com/hjdhjd/myq#readme",
+  "homepage": "https://github.com/brbeaird/myq#readme",
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git://github.com/hjdhjd/myq.git"
+    "url": "git://github.com/brbeaird/myq.git"
   },
   "bugs": {
-    "url": "https://github.com/hjdhjd/myq/issues"
+    "url": "https://github.com/brbeaird/myq/issues"
   },
   "keywords": [
     "chamberlain",
@@ -28,7 +27,7 @@
     "remote"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=16"
   },
   "main": "dist/index.js",
   "scripts": {
@@ -41,16 +40,16 @@
     "watch": "npm run build && npm link && nodemon"
   },
   "devDependencies": {
-    "@types/node": "20.8.5",
-    "@typescript-eslint/eslint-plugin": "6.7.5",
-    "@typescript-eslint/parser": "6.7.5",
-    "eslint": "8.51.0",
-    "rimraf": "5.0.5",
+    "@types/node": "20.5.6",
+    "@typescript-eslint/eslint-plugin": "6.4.1",
+    "@typescript-eslint/parser": "6.4.1",
+    "eslint": "8.48.0",
+    "rimraf": "5.0.1",
     "typescript": "5.2.2"
   },
   "dependencies": {
-    "@adobe/fetch": "4.1.0",
-    "node-html-parser": "6.1.10",
-    "pkce-challenge": "4.0.1"
+    "@adobe/fetch": "^3.6.5",
+    "node-html-parser": "6.1.6",
+    "pkce-challenge": "^3.0.0"
   }
 }

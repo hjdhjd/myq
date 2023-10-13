@@ -1,20 +1,24 @@
 {
   "compilerOptions": {
-    "allowSyntheticDefaultImports": true,
-    "declaration": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
+    "target": "ES2018",
+    "module": "commonjs",
     "lib": [
-      "DOM",
-      "ES2022"
+      "ES2015",
+      "ES2016",
+      "ES2017",
+      "ES2018",
+      "ES2019",
+      "ES2020",
+      "DOM"
     ],
-    "module": "ES2022",
-    "moduleResolution":"node",
-    "outDir": "dist",
-    "rootDir": "src",
     "sourceMap": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "declaration": true,
+
     "strict": true,
-    "target": "ES2022"
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true
   },
   "include": [
     "src"
