@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file. This project uses [semantic versioning](https://semver.org/).
 
+# 7.6.0 (2023-10-15)
+  * Improvement: across the board optimizations to adapt to the myQ server side shifting to a more pedantic approach to API access.
+
 # 7.5.2 (2023-10-12)
   * Fix: myQ has begun adapting their OAuth flow and tightening up some tidbits. We adapt. Hat tip to @drysart and @justinlindh for the legwork on this one.
 
@@ -10,7 +13,7 @@ All notable changes to this project will be documented in this file. This projec
 
 # 7.5.0 (2023-09-15)
   * Improvement: API resiliency has been substantively improved through incorporating automatic retries across myQ regions. This should improve robustness across the occasional cloud infrastructure challenges that the myQ API encounters.
-  * New feature: Added a `login()` function. This is now a required first step prior to using the API for any other calls. The constructor no longer requires login credentials. See the README for details.
+  * New feature: added a `login()` function. This is now a required first step prior to using the API for any other calls. The constructor no longer requires login credentials. See the README for details.
   * Housekeeping.
 
 # 7.4.2 (2023-08-26)
