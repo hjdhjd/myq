@@ -3,7 +3,8 @@
  * myq-api.ts: Our modern myQ v6 API implementation.
  */
 import { ALPNProtocol, FetchError, Headers, Request, RequestOptions, Response, context } from "@adobe/fetch";
-import { MYQ_API_CLIENT_ID, MYQ_API_CLIENT_SECRET, MYQ_API_REDIRECT_URI } from "./settings.js";
+import { MYQ_API_CLIENT_ID, MYQ_API_CLIENT_SECRET, MYQ_API_REDIRECT_URI, MYQ_API_SCOPE, MYQ_APP_ID, MYQ_APP_USER_AGENT, MYQ_APP_VERSION,
+  MYQ_LOGIN_USER_AGENT } from "./settings.js";
 import { myQAccount, myQDevice, myQDeviceList, myQHwInfo, myQToken } from "./myq-types.js";
 import http from "node:http";
 import { myQLogging } from "./myq-logging.js";
@@ -12,54 +13,45 @@ import pkceChallenge from "pkce-challenge";
 import util from "node:util";
 
 /*
- * The myQ API is undocumented, non-public, and has been derived largely through
- * reverse engineering the official app, myQ website, and trial and error.
+ * The myQ API is undocumented, non-public, and has been derived largely through reverse engineering the official app, myQ website, and trial and error.
  *
- * This project stands on the shoulders of the other myQ projects out there that have
- * done much of the heavy lifting of decoding the API.
+ * This project stands on the shoulders of the other myQ projects out there that have done much of the heavy lifting of decoding the API.
  *
- * Starting with v6 of the myQ API, myQ now uses OAuth 2.0 + PKCE to authenticate users and
- * provide access tokens for future API calls. In order to successfully use the API, we need
- * to first authenticate to the myQ API using OAuth, get the access token, and use that for
- * future API calls.
+ * Starting with v6 of the myQ API, myQ now uses OAuth 2.0 + PKCE to authenticate users and provide access tokens for future API calls. In order to successfully use the
+ * API, we need to first authenticate to the myQ API using OAuth, get the access token, and use that for future API calls.
  *
- * On the plus side, the myQ application identifier and HTTP user agent - previously pain
- * points for the community when they get seemingly randomly changed or blacklisted - are
- * no longer required.
+ * Additionally, as of October 2023, myQ seems to be taking more active steps to block attempts to use the API that are not very closely conforming to the usage and
+ * API access pattern of the native myQ app. Among other things, there are now several limits in place to make API access and experimentation more difficult. Failed
+ * login attempts when not completely conforming to what the API endpoints are looking for will now trigger an account lockout after three attempts within a 60 minute
+ * period. Similarly, a 60 minute lockout will be triggered if you login successfully more than ten times within a 60 minute period. Why? To make it painful.
  *
- * For those familiar with prior versions of the API, v6 does not represent a substantial
- * change outside of the shift in authentication type and slightly different endpoint
- * semantics. The largest non-authentication-related change relate to how commands are
- * sent to the myQ API to execute actions such as opening and closing a garage door, and
- * even those changes are relatively minor.
+ * For those familiar with prior versions of the API, v6 does not represent a substantial change outside of the shift in authentication type and slightly different
+ * endpoint semantics. The largest non-authentication-related change relate to how commands are sent to the myQ API to execute actions such as opening and closing a
+ * garage door, and even those changes are relatively minor.
  *
- * The myQ API is clearly evolving and will continue to do so. So what's good about v6 of
- * the API? A few observations that will be explored with time and lots of experimentation
- * by the community:
+ * The myQ API is clearly evolving and will continue to do so. So what's good about v6 of the API? A few observations that will be explored with time and lots of
+ * experimentation by the community:
  *
  *   - It seems possible to use guest accounts to now authenticate to myQ.
  *   - Cameras seem to be more directly supported.
  *   - Locks seem to be more directly supported.
+ *   - myQ uses Firebase for notifications and it should be possible to use it for push notifications rather than polling as we do now. This will require a more
+ *     intensive analysis to bring it all together.
+ *   - There appears to be a MQTT interface, although how to access it is a bit of a question mark, and it's been quite some time since I've last looked at it.
  *
  * Overall, the workflow to using the myQ API should still feel familiar:
  *
  * 1. Login to the myQ API and acquire an OAuth access token.
- * 2. Enumerate the list of myQ devices, including gateways and openers. myQ devices like
- *    garage openers or lights are associated with gateways. While you can have multiple
- *    gateways in a home, a more typical setup would be one gateway per home, and one or
- *    more devices associated with that gateway.
- * 3. To check status of myQ devices, we periodically poll to get updates on specific
- *    devices.
+ * 2. Enumerate the list of myQ devices, including gateways and openers. myQ devices like garage openers or lights are associated with gateways. While you can have
+ *    multiple gateways in a home, a more typical setup would be one gateway per home, and one or more devices associated with that gateway.
+ * 3. To check status of myQ devices, we periodically poll to get updates on specific devices.
  *
- * Those are the basics and gets us up and running. There are further API calls that
- * allow us to open and close openers, lights, and other devices, as well as periodically
- * poll for status updates.
+ * Those are the basics and gets us up and running. There are further API calls that allow us to open and close openers, lights, and other devices, as well as
+ * periodically poll for status updates.
  *
- * That last part is key. Since there is no way that we know of to monitor status changes
- * in real time, we have to resort to polling the myQ API regularly to see if something
- * has happened that we're interested in (e.g. a garage door opening or closing). It
- * would be great if a monitor API existed to inform us when changes occur, but alas,
- * it either doesn't exist or hasn't been discovered yet.
+ * That last part is key. Since there is no way that we know of to monitor status changes in real time, we have to resort to polling the myQ API regularly to see if
+ * something has happened that we're interested in (e.g. a garage door opening or closing). It would be great if a monitor API existed to inform us when changes occur,
+ * but alas, it either doesn't exist or hasn't been discovered yet.
  */
 
 const myQRegions = [ "", "east", "west" ];
@@ -68,18 +60,15 @@ export class myQApi {
 
   public devices!: myQDevice[];
   private accessToken: string | null;
-  private refreshInterval: number;
+  private refreshTimer: NodeJS.Timeout | null;
   private refreshToken: string;
   private tokenScope: string;
-  private accessTokenTimestamp!: number;
   private apiReturnStatus: number;
   private email: string | null;
   private password: string | null;
   private accounts: string[];
   private headers: Headers;
   private log: myQLogging;
-  private lastAuthenticateCall!: number;
-  private lastRefreshDevicesCall!: number;
   private myqRetrieve: (url: string|Request, options?: RequestOptions) => Promise<Response>;
   private region: number;
 
@@ -104,7 +93,7 @@ export class myQApi {
     this.email = null;
     this.headers = new Headers();
     this.password = null;
-    this.refreshInterval = 0;
+    this.refreshTimer = null;
     this.refreshToken = "";
     this.region = 0;
     this.tokenScope = "";
@@ -128,15 +117,47 @@ export class myQApi {
     this.email = email;
     this.password = password;
     this.accessToken = null;
-    this.lastAuthenticateCall = this.lastRefreshDevicesCall = 0;
 
     return this.refreshDevices();
+  }
+
+  // Utility to emulate the native myQ app behavior during the login process.
+  private generateLoginHeaders(headers?: Record<string, string>): Record<string, string> {
+
+    return Object.assign({
+
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+      "Accept-Encoding": "gzip, deflate, br",
+      "Accept-Language": "en-US,en;q=0.9",
+      "User-Agent": MYQ_LOGIN_USER_AGENT,
+      "sec-fetch-dest": "document",
+      "sec-fetch-mode": "navigate",
+      "sec-fetch-site": "none",
+      "upgrade-insecure-requests": "1"
+    }, headers);
+  }
+
+  // Utility to emulate the native myQ app behavior.
+  private generateApiHeaders(headers?: Record<string, string>): Record<string, string> {
+
+    return Object.assign({
+
+      "Accept-Encoding": "gzip",
+      "App-Version": MYQ_APP_VERSION,
+      "Authorization": this.accessToken,
+      "BrandId": "1",
+      "MyQApplicationId": MYQ_APP_ID,
+      "User-Agent": MYQ_APP_USER_AGENT
+    }, headers);
   }
 
   // Transmit the PKCE challenge and retrieve the myQ OAuth authorization page to prepare to login.
   private async oauthGetAuthPage(codeChallenge: string): Promise<Response | null> {
 
     const authEndpoint = new URL("https://partner-identity.myq-cloud.com/connect/authorize");
+
+    // Set the authentication context class reference. We need to explicitly URI-encode this before setting the parameter, or the value won't be properly escaped.
+    authEndpoint.searchParams.set("acr_values", encodeURIComponent("unified_flow:v1  brand:myq"));
 
     // Set the client identifier.
     authEndpoint.searchParams.set("client_id", MYQ_API_CLIENT_ID);
@@ -147,6 +168,12 @@ export class myQApi {
     // Set the PKCE code challenge method.
     authEndpoint.searchParams.set("code_challenge_method", "S256");
 
+    // Set the prompt.
+    authEndpoint.searchParams.set("prompt", "login");
+
+    // Set the locale of the user interface.
+    authEndpoint.searchParams.set("ui_locales", "en-US");
+
     // Set the redirect URI to the myQ app.
     authEndpoint.searchParams.set("redirect_uri", MYQ_API_REDIRECT_URI);
 
@@ -154,10 +181,10 @@ export class myQApi {
     authEndpoint.searchParams.set("response_type", "code");
 
     // Set the scope.
-    authEndpoint.searchParams.set("scope", "MyQ_Residential offline_access");
+    authEndpoint.searchParams.set("scope", MYQ_API_SCOPE);
 
     // Send the PKCE challenge and let's begin the login process.
-    const response = await this.retrieve(authEndpoint.toString(), { redirect: "follow" }, true);
+    const response = await this.retrieve(authEndpoint.toString(), { headers: this.generateLoginHeaders() , redirect: "manual" });
 
     if(!response) {
 
@@ -165,7 +192,18 @@ export class myQApi {
       return null;
     }
 
-    return response;
+    // If we don't have the full set of cookies we expect, something is wrong.
+    if(!response.headers.raw()["set-cookie"] || response.headers.raw()["set-cookie"].length < 3) {
+
+      this.log.error("myQ API login anomaly detected.");
+      return null;
+    }
+
+    // Create a new URL based on the redirect.
+    const redirectUrl = new URL(response.headers.get("location") as string, response.url);
+
+    // Execute the redirect with the cookies that were provided by the myQ API when accessing the login URL.
+    return this.retrieve(redirectUrl.toString(), { headers: this.generateLoginHeaders({ "Cookie": this.generateLoginCookies(response.headers) }) });
   }
 
   // Login to the myQ API, using the retrieved authorization page.
@@ -176,9 +214,6 @@ export class myQApi {
 
       return null;
     }
-
-    // Grab the cookie for the OAuth sequence. We need to deal with spurious additions to the cookie that gets returned by the myQ API.
-    const cookie = this.trimSetCookie(authPage.headers.raw()["set-cookie"]);
 
     // Parse the myQ login page and grab what we need.
     const htmlText = await authPage.text();
@@ -192,22 +227,25 @@ export class myQApi {
     }
 
     // Set the login info.
-    const loginBody = new URLSearchParams({ "Email": this.email, "Password": this.password, "UnifiedFlowRequested": "true",
+    const loginBody = new URLSearchParams({ "Email": this.email, "Password": this.password, "UnifiedFlowRequested": "True",
       "__RequestVerificationToken": requestVerificationToken, "brand": "myq" });
 
     // Login and we're done.
     const response = await this.retrieve(authPage.url, {
 
       body: loginBody.toString(),
-      headers: {
+      headers: this.generateLoginHeaders({
 
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
         "Content-Type": "application/x-www-form-urlencoded",
-        "Cookie": cookie
-      },
+        "Cookie": this.generateLoginCookies(authPage.headers),
+        "cache-control": "max-age=0",
+        "origin": "null",
+        "sec-fetch-site": "same-origin",
+        "sec-fetch-user": "?1"
+      }),
       method: "POST",
       redirect: "manual"
-    }, true);
+    });
 
     // An error occurred and we didn't get a good response.
     if(!response || !response.headers) {
@@ -232,19 +270,19 @@ export class myQApi {
     // Get the location for the redirect for later use.
     const redirectUrl = new URL(loginResponse.headers.get("location") as string, loginResponse.url);
 
-    // Cleanup the cookie so we can complete the login process by removing spurious additions
-    // to the cookie that gets returned by the myQ API.
-    const cookie = this.trimSetCookie(loginResponse.headers.raw()["set-cookie"]);
-
     // Execute the redirect with the cleaned up cookies and we're done.
     const response = await this.retrieve(redirectUrl.toString(), {
 
-      headers: {
+      headers: this.generateLoginHeaders({
 
-        "Cookie": cookie
-      },
+        "Cookie": this.generateLoginCookies(loginResponse.headers),
+        "cache-control": "max-age=0",
+        "origin": "null",
+        "sec-fetch-site": "same-origin",
+        "sec-fetch-user": "?1"
+      }),
       redirect: "manual"
-    }, true);
+    });
 
     if(!response) {
 
@@ -255,8 +293,15 @@ export class myQApi {
     return response;
   }
 
-  // Get a new OAuth access token.
+  // Get a new OAuth access token and orchestrate the myQ login process.
   private async getOAuthToken(): Promise<string | null> {
+
+    // Kill the refresh timer, if there is one.
+    if(this.refreshTimer) {
+
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
+    }
 
     // Generate the OAuth PKCE challenge required for the myQ API.
     const pkce = await pkceChallenge();
@@ -291,24 +336,21 @@ export class myQApi {
     // Create the request to get our access and refresh tokens.
     const requestBody = new URLSearchParams({
 
+      "client_id": MYQ_API_CLIENT_ID,
       "code": redirectUrl.searchParams.get("code") as string,
       "code_verifier": pkce.code_verifier,
       "grant_type": "authorization_code",
-      "redirect_uri": MYQ_API_REDIRECT_URI
+      "redirect_uri": MYQ_API_REDIRECT_URI,
+      "scope": MYQ_API_SCOPE
     });
 
     // Now we execute the final login redirect that will validate the PKCE challenge and return our access and refresh tokens.
     response = await this.retrieve("https://partner-identity.myq-cloud.com/connect/token", {
 
       body: requestBody.toString(),
-      headers: {
-
-        "Accept": "*/*",
-        "Authorization": "Basic " + Buffer.from(MYQ_API_CLIENT_ID + ":").toString("base64"),
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
+      headers: this.generateApiHeaders({ "Content-Type": "application/x-www-form-urlencoded" }),
       method: "POST"
-    }, true);
+    });
 
     if(!response) {
 
@@ -317,21 +359,29 @@ export class myQApi {
 
     // Grab the token JSON.
     const token = await response.json() as myQToken;
-    this.refreshInterval = token.expires_in;
     this.refreshToken = token.refresh_token;
     this.tokenScope = redirectUrl.searchParams.get("scope") ?? "" ;
 
-    // Refresh our tokens at seven minutes before expiration as a failsafe.
-    this.refreshInterval -= 420;
-
-    // Ensure we never try to refresh more frequently than every five minutes.
-    if(this.refreshInterval < 300) {
-
-      this.refreshInterval = 300;
-    }
+    this.setTokenRefreshTimer(token.expires_in);
 
     // Return the access token in cookie-ready form: "Bearer ...".
     return token.token_type + " " + token.access_token;
+  }
+
+  // Refresh our tokens at a regular interval.
+  private setTokenRefreshTimer(amount: number): void {
+
+    // Kill the refresh timer, if there is one.
+    if(this.refreshTimer) {
+
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+
+    this.refreshTimer = setTimeout(() => {
+
+      void this.refreshAccessToken();
+    }, (amount - (3 * 60)) * 1000);
   }
 
   // Refresh our OAuth access token.
@@ -352,12 +402,14 @@ export class myQApi {
     const response = await this.retrieve("https://partner-identity.myq-cloud.com/connect/token", {
 
       body: requestBody.toString(),
-      headers: {
+      headers: this.generateApiHeaders({
 
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
+        "Authorization": "Bearer old-token",
+        "Content-Type": "application/x-www-form-urlencoded",
+        "isRefresh": "true"
+      }),
       method: "POST"
-    }, true);
+    });
 
     if(!response) {
 
@@ -367,22 +419,10 @@ export class myQApi {
     // Grab the refresh token JSON.
     const token = await response.json() as myQToken;
     this.accessToken = token.token_type + " " + token.access_token;
-    this.accessTokenTimestamp = Date.now();
-    this.refreshInterval = token.expires_in;
     this.refreshToken = token.refresh_token;
     this.tokenScope = token.scope ?? this.tokenScope;
 
-    // Refresh our tokens at seven minutes before expiration as a failsafe.
-    this.refreshInterval -= 420;
-
-    // Ensure we never try to refresh more frequently than every five minutes.
-    if(this.refreshInterval < 300) {
-
-      this.refreshInterval = 300;
-    }
-
-    // Update our authorization header.
-    this.headers.set("Authorization", this.accessToken);
+    this.setTokenRefreshTimer(token.expires_in);
 
     this.log.debug("Successfully refreshed the myQ API access token.");
 
@@ -394,10 +434,6 @@ export class myQApi {
   private async acquireAccessToken(): Promise<boolean> {
 
     let firstConnection = true;
-    const now = Date.now();
-
-    // Reset the API call time.
-    this.lastAuthenticateCall = now;
 
     // Clear out tokens from prior connections.
     if(this.accessToken) {
@@ -427,10 +463,6 @@ export class myQApi {
     }
 
     this.accessToken = token;
-    this.accessTokenTimestamp = now;
-
-    // Add the token to our headers that we will use for subsequent API calls.
-    this.headers.set("Authorization", this.accessToken);
 
     // Grab our account information for subsequent calls.
     if(!(await this.getAccounts())) {
@@ -447,24 +479,10 @@ export class myQApi {
   // Refresh the myQ access token, if needed.
   private async refreshAccessToken(): Promise<boolean> {
 
-    const now = Date.now();
-
-    // We want to throttle how often we call this API to no more than once every 2 minutes.
-    if((now - this.lastAuthenticateCall) < (2 * 60 * 1000)) {
-
-      return (this.accounts.length && this.accessToken) ? true : false;
-    }
-
     // If we don't have a access token yet, acquire one.
     if(!this.accounts.length || !this.accessToken) {
 
       return await this.acquireAccessToken();
-    }
-
-    // Is it time to refresh? If not, we're good for now.
-    if((now - this.accessTokenTimestamp) < (this.refreshInterval * 1000)) {
-
-      return true;
     }
 
     // Try refreshing our existing access token before resorting to acquiring a new one.
@@ -493,20 +511,6 @@ export class myQApi {
       this.log.error("You must login to the myQ API prior to calling this function.");
       return false;
     }
-
-    const now = Date.now();
-
-    // We want to throttle how often we call this API as a failsafe. If we call it more than once every two seconds or so, bad things can happen on the myQ side leading
-    // to potential account lockouts. The author definitely learned this one the hard way.
-    if(this.lastRefreshDevicesCall && ((now - this.lastRefreshDevicesCall) < (2 * 1000))) {
-
-      this.log.debug("throttling refreshDevices API call. Using cached data from the past two seconds.");
-
-      return this.devices ? true : false;
-    }
-
-    // Reset the API call time.
-    this.lastRefreshDevicesCall = now;
 
     // Validate and potentially refresh our access token.
     if(!(await this.refreshAccessToken())) {
@@ -605,20 +609,21 @@ export class myQApi {
       return false;
     }
 
-    let response;
+    // Map the myQ device family to the corresponding URL endpoint. We treat garage doors as the default because they can appear as different names in the myQ API.
+    const deviceMap: { [index: string]: { host: string, path: string } } = {
 
-    // Ensure we cann the right endpoint to execute commands depending on device family.
-    if(device.device_family === "lamp") {
+      "default":    { host: "gdo", path: "door_openers" },
+      "garagedoor": { host: "gdo", path: "door_openers" },
+      "lamp":       { host: "lamp", path: "lamps" }
+    };
 
-      // Execute a command on a lamp device.
-      response = await this.retrieve("https://account-devices-lamp.myq-cloud.com/api/v5.2/Accounts/" + device.account_id +
-        "/lamps/" + device.serial_number + "/" + command, { method: "PUT" });
-    } else {
+    // Figure out our endpoints based on the myQ device family.
+    const deviceHost = deviceMap[device.device_family] ? deviceMap[device.device_family].host : deviceMap.default.host;
+    const devicePath = deviceMap[device.device_family] ? deviceMap[device.device_family].path : deviceMap.default.path;
 
-      // By default, we assume we're targeting a garage door opener.
-      response = await this.retrieve("https://account-devices-gdo.myq-cloud.com/api/v5.2/Accounts/" + device.account_id +
-        "/door_openers/" + device.serial_number + "/" + command, { method: "PUT" });
-    }
+    // Execute a command on a myQ device.
+    const response = await this.retrieve("https://account-devices-" + deviceHost + ".myq-cloud.com/api/v5.2/Accounts/" + device.account_id +
+      "/" + devicePath + "/" + device.serial_number + "/" + command, { headers: this.generateApiHeaders(), method: "PUT" });
 
     // Check for errors.
     if(!response) {
@@ -671,21 +676,15 @@ export class myQApi {
   // Get the details of a specific device in the myQ device list.
   public getDevice(serial: string): myQDevice | null {
 
-    // Sanity check.
+    // Login sanity check.
     if(!this.login || !this.password) {
 
       this.log.error("You must login to the myQ API prior to calling this function.");
       return null;
     }
 
-    // Check to make sure we have fresh information from myQ. If it's less than a minute old, it looks good to us.
-    if(!this.devices || !this.lastRefreshDevicesCall || ((Date.now() - this.lastRefreshDevicesCall) > (60 * 1000))) {
-
-      return null;
-    }
-
-    // If we've got no serial number, we're done here.
-    if(serial.length <= 0) {
+    // If we have no myQ devices or an invalid serial number, we're done.
+    if(!this.devices || (serial.length <= 0)) {
 
       return null;
     }
@@ -778,21 +777,30 @@ export class myQApi {
     return (HwInfo[serial[2] + serial[3]]) ?? null;
   }
 
-  // Utility function to return the relevant portions of the cookies used in the login process.
-  private trimSetCookie(setCookie: string | string[]): string {
+  // Utility function to generate the cookies used in the login process, based on existing cookies provided by the myQ API and additional ones being set.
+  private generateLoginCookies(headers: Headers): string {
 
-    // Let's make sure we're operating on an array that's passed back as a header.
-    if(!Array.isArray(setCookie)) {
+    // Grab the headers, if they exist.
+    let cookies = headers.raw().cookie ?? [];
+    let setCookies = headers.raw()["set-cookie"] ?? [];
 
-      setCookie = [ setCookie ];
+    // Let's make sure we're operating on arrays.
+    if(!Array.isArray(cookies)) {
+
+      cookies = [ cookies ];
+    }
+
+    if(!Array.isArray(setCookies)) {
+
+      setCookies = [ setCookies ];
     }
 
     // We need to strip spurious additions to the cookie that gets returned by the myQ API.
-    return setCookie.map(x => x.split(";")[0]).join("; ");
+    return cookies.concat(setCookies).map(x => x.split(";")[0]).join("; ");
   }
 
   // Utility to let us streamline error handling and return checking from the myQ API.
-  private async retrieve(url: string, options: RequestOptions = {}, overrideHeaders = false, decodeResponse = true, isRetry = 0): Promise<Response | null> {
+  private async retrieve(url: string, options: RequestOptions = { headers: this.generateApiHeaders() }, decodeResponse = true, isRetry = 0): Promise<Response | null> {
 
     // This could be done with regular expressions, but in the interest of easier readability and maintenance, we parse the URL with a URL object.
     const retrieveUrl = new URL(url);
@@ -850,7 +858,7 @@ export class myQApi {
       if(isRetry < 3) {
 
         this.log.debug(logMessage + " Retrying the API call.");
-        return this.retrieve(url, options, overrideHeaders, decodeResponse, ++isRetry);
+        return this.retrieve(url, options, decodeResponse, ++isRetry);
       }
 
       this.log.error(logMessage);
@@ -858,12 +866,6 @@ export class myQApi {
     };
 
     let response: Response;
-
-    // Set our headers.
-    if(!overrideHeaders) {
-
-      options.headers = this.headers;
-    }
 
     // Reset our API return status.
     this.apiReturnStatus = 0;
@@ -904,7 +906,8 @@ export class myQApi {
       // myQ API issues at the server end.
       if(isServerSideIssue(response.status)) {
 
-        return retry("Temporary myQ API server-side issues encountered: " + httpStatusMessage + ".");
+        return retry("Temporary myQ API server-side issues encountered: " + httpStatusMessage + "." +
+        (response.status === 429 ? " This typically indicates a myQ API lockout for a 60-90 minute period before resuming API connectivity.": ""));
       }
 
       // Some other unknown error occurred.
