@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file. This project uses [semantic versioning](https://semver.org/).
 
 # 7.6.0 (2023-10-15)
-  * Improvement: across the board optimizations to adapt to the myQ server side shifting to a more pedantic approach to API access.
+  * Improvement: across the board optimizations to adapt to the myQ server side shifting to a more pedantic approach to API access. Huge thanks to @jarz for the continued collaboration.
 
 # 7.5.2 (2023-10-12)
   * Fix: myQ has begun adapting their OAuth flow and tightening up some tidbits. We adapt. Hat tip to @drysart and @justinlindh for the legwork on this one.
